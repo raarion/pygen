@@ -1,0 +1,140 @@
+{
+  "category": "api_client",
+  "label": "API Client",
+  "templates": [
+    {
+      "id": "rest_client_builder",
+      "title": "REST API Client Builder",
+      "description": "Class builder untuk REST API client dengan .get() .post() .put() .delete(). stdlib urllib.",
+      "imports": ["urllib.request", "urllib.parse", "json"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "RESTClient"},
+        {"name": "base_url", "label": "Base URL default", "type": "text", "default": "http://localhost:8000"},
+        {"name": "timeout", "label": "Timeout detik", "type": "int", "default": 30}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"REST API client using stdlib urllib.\"\"\"\n    def __init__(self, base_url='{{base_url}}', timeout={{timeout}}, default_headers=None):\n        self.base_url = base_url.rstrip('/')\n        self.timeout = timeout\n        self.default_headers = default_headers or {}\n\n    def _build_request(self, method, path, data=None, headers=None, params=None):\n        url = self.base_url + '/' + path.lstrip('/')\n        if params:\n            url += '?' + urllib.parse.urlencode(params)\n        body = None\n        hdrs = dict(self.default_headers)\n        hdrs.update(headers or {})\n        if data is not None:\n            body = json.dumps(data).encode('utf-8')\n            hdrs.setdefault('Content-Type', 'application/json')\n        req = urllib.request.Request(url, data=body, headers=hdrs, method=method)\n        return req\n\n    def _do(self, method, path, data=None, headers=None, params=None):\n        req = self._build_request(method, path, data, headers, params)\n        with urllib.request.urlopen(req, timeout=self.timeout) as resp:\n            body = resp.read().decode('utf-8')\n            content_type = resp.headers.get('Content-Type', '')\n            if 'json' in content_type:\n                return json.loads(body)\n            return body\n\n    def get(self, path, **kw):\n        return self._do('GET', path, **kw)\n\n    def post(self, path, data=None, **kw):\n        return self._do('POST', path, data=data, **kw)\n\n    def put(self, path, data=None, **kw):\n        return self._do('PUT', path, data=data, **kw)\n\n    def delete(self, path, **kw):\n        return self._do('DELETE', path, **kw)\n",
+      "sample_values": {
+        "nama_class": "RESTClient",
+        "base_url": "http://localhost:8000",
+        "timeout": 30
+      }
+    },
+    {
+      "id": "pagination_handler",
+      "title": "API Pagination Handler",
+      "description": "Auto-follow paginasi API: support offset dan cursor-based pagination.",
+      "imports": ["urllib.request", "json"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "Paginator"},
+        {"name": "page_size", "label": "Default page size", "type": "int", "default": 20}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Generic API paginator supporting offset and cursor modes.\"\"\"\n    def __init__(self, fetch_func, page_size={{page_size}}):\n        self.fetch_func = fetch_func\n        self.page_size = page_size\n\n    def paginate_offset(self, url, items_key='results', next_key='next', page_param='page', size_param='per_page'):\n        \"\"\"Offset-based pagination. fetch_func(url) must return dict.\"\"\"\n        page = 1\n        while True:\n            sep = '&' if '?' in url else '?'\n            paged_url = url + sep + page_param + '=' + str(page) + '&' + size_param + '=' + str(self.page_size)\n            data = self.fetch_func(paged_url)\n            items = data.get(items_key, [])\n            if not items:\n                break\n            yield from items\n            if not data.get(next_key):\n                break\n            page += 1\n\n    def paginate_cursor(self, url, items_key='results', cursor_key='next_cursor', cursor_param='cursor'):\n        \"\"\"Cursor-based pagination.\"\"\"\n        cursor = None\n        while True:\n            sep = '&' if '?' in url else '?'\n            if cursor:\n                paged_url = url + sep + cursor_param + '=' + str(cursor)\n            else:\n                paged_url = url\n            data = self.fetch_func(paged_url)\n            items = data.get(items_key, [])\n            if not items:\n                break\n            yield from items\n            cursor = data.get(cursor_key)\n            if not cursor:\n                break\n",
+      "sample_values": {
+        "nama_class": "Paginator",
+        "page_size": 20
+      }
+    },
+    {
+      "id": "oauth2_client_credentials",
+      "title": "OAuth2 Client Credentials Flow",
+      "description": "Dapatkan token OAuth2 via client_credentials grant, simpan & auto-refresh.",
+      "imports": ["urllib.request", "urllib.parse", "json", "time", "base64"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "OAuth2Client"},
+        {"name": "buffer_seconds", "label": "Refresh buffer (detik sebelum expired)", "type": "int", "default": 30}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"OAuth2 Client Credentials flow with auto token refresh.\"\"\"\n    def __init__(self, token_url, client_id, client_secret, scope=''):\n        self.token_url = token_url\n        self.client_id = client_id\n        self.client_secret = client_secret\n        self.scope = scope\n        self._token = None\n        self._expires_at = 0\n        self._buffer = {{buffer_seconds}}\n\n    def _fetch_token(self):\n        credentials = base64.b64encode(\n            (self.client_id + ':' + self.client_secret).encode()\n        ).decode()\n        data = urllib.parse.urlencode({\n            'grant_type': 'client_credentials',\n            'scope': self.scope,\n        }).encode()\n        req = urllib.request.Request(\n            self.token_url,\n            data=data,\n            headers={\n                'Authorization': 'Basic ' + credentials,\n                'Content-Type': 'application/x-www-form-urlencoded',\n            },\n        )\n        with urllib.request.urlopen(req) as resp:\n            result = json.loads(resp.read())\n        self._token = result['access_token']\n        self._expires_at = time.time() + result.get('expires_in', 3600)\n        return self._token\n\n    def get_token(self):\n        if self._token and time.time() < (self._expires_at - self._buffer):\n            return self._token\n        return self._fetch_token()\n\n    def get_auth_header(self):\n        return {'Authorization': 'Bearer ' + self.get_token()}\n",
+      "sample_values": {
+        "nama_class": "OAuth2Client",
+        "buffer_seconds": 30
+      }
+    },
+    {
+      "id": "api_rate_limiter",
+      "title": "Token Bucket Rate Limiter",
+      "description": "Batasi request per detik/menit menggunakan algoritma token bucket.",
+      "imports": ["time", "threading"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "RateLimiter"},
+        {"name": "max_tokens", "label": "Max tokens (burst)", "type": "int", "default": 10},
+        {"name": "refill_rate", "label": "Refill rate (token/detik)", "type": "int", "default": 1}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Token bucket rate limiter. Thread-safe.\"\"\"\n    def __init__(self, max_tokens={{max_tokens}}, refill_rate={{refill_rate}}):\n        self.max_tokens = max_tokens\n        self.refill_rate = refill_rate\n        self._tokens = float(max_tokens)\n        self._last_refill = time.monotonic()\n        self._lock = threading.Lock()\n\n    def _refill(self):\n        now = time.monotonic()\n        elapsed = now - self._last_refill\n        self._tokens = min(self.max_tokens, self._tokens + elapsed * self.refill_rate)\n        self._last_refill = now\n\n    def acquire(self, blocking=True, timeout=None):\n        \"\"\"Try to acquire a token. Returns True if acquired.\"\"\"\n        deadline = time.monotonic() + (timeout or 0) if timeout else None\n        while True:\n            with self._lock:\n                self._refill()\n                if self._tokens >= 1.0:\n                    self._tokens -= 1.0\n                    return True\n                if not blocking:\n                    return False\n            if deadline and time.monotonic() >= deadline:\n                return False\n            time.sleep(1.0 / self.refill_rate)\n\n    def wait(self):\n        \"\"\"Block until a token is available.\"\"\"\n        self.acquire(blocking=True)\n",
+      "sample_values": {
+        "nama_class": "RateLimiter",
+        "max_tokens": 10,
+        "refill_rate": 1
+      }
+    },
+    {
+      "id": "graphql_query_builder",
+      "title": "GraphQL Query Builder",
+      "description": "Bangun query/mutation GraphQL string dari dict Python. Tanpa library eksternal.",
+      "imports": ["json"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "GraphQLBuilder"},
+        {"name": "nama_fungsi_exec", "label": "Nama fungsi executor", "type": "identifier", "default": "execute_query"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Build GraphQL query/mutation strings from Python dicts.\"\"\"\n    def __init__(self):\n        self._operation = None\n        self._name = ''\n        self._variables = {}\n        self._fields = []\n\n    def query(self, name=''):\n        self._operation = 'query'\n        self._name = name\n        return self\n\n    def mutation(self, name=''):\n        self._operation = 'mutation'\n        self._name = name\n        return self\n\n    def fields(self, *field_names):\n        self._fields.extend(field_names)\n        return self\n\n    def variable(self, name, gql_type, value=None):\n        self._variables[name] = {'type': gql_type, 'value': value}\n        return self\n\n    def build(self):\n        var_defs = ', '.join(\n            '$' + name + ': ' + spec['type']\n            for name, spec in self._variables.items()\n        )\n        var_part = '(' + var_defs + ')' if var_defs else ''\n        name_part = ' ' + self._name if self._name else ''\n        fields_str = '\\n    '.join(self._fields) if self._fields else '__typename'\n        return self._operation + name_part + var_part + ' {\\n    ' + fields_str + '\\n}'\n\n    def get_variables(self):\n        return {name: spec['value'] for name, spec in self._variables.items() if spec['value'] is not None}\n\n\ndef {{nama_fungsi_exec}}(url, query_str, variables=None, headers=None):\n    \"\"\"Execute a GraphQL query via HTTP POST.\"\"\"\n    import urllib.request\n    payload = json.dumps({'query': query_str, 'variables': variables or {}}).encode('utf-8')\n    hdrs = {'Content-Type': 'application/json'}\n    hdrs.update(headers or {})\n    req = urllib.request.Request(url, data=payload, headers=hdrs, method='POST')\n    with urllib.request.urlopen(req) as resp:\n        return json.loads(resp.read())\n",
+      "sample_values": {
+        "nama_class": "GraphQLBuilder",
+        "nama_fungsi_exec": "execute_query"
+      }
+    },
+    {
+      "id": "bearer_auth_wrapper",
+      "title": "Bearer Auth Decorator",
+      "description": "Decorator untuk auto-attach Authorization: Bearer header ke fungsi HTTP request.",
+      "imports": ["functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "with_bearer_auth"},
+        {"name": "nama_class", "label": "Nama class TokenProvider", "type": "identifier", "default": "TokenProvider"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Base token provider. Override get_token() for custom logic.\"\"\"\n    def __init__(self, token=''):\n        self._token = token\n\n    def get_token(self):\n        return self._token\n\n    def set_token(self, token):\n        self._token = token\n\n\ndef {{nama_decorator}}(token_provider):\n    \"\"\"Decorator: inject Bearer token into request function.\n    The wrapped function must accept 'headers' keyword argument.\n    \"\"\"\n    def decorator(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            headers = dict(kwargs.pop('headers', {}) or {})\n            token = token_provider.get_token()\n            if token:\n                headers['Authorization'] = 'Bearer ' + token\n            kwargs['headers'] = headers\n            return func(*args, **kwargs)\n        return wrapper\n    return decorator\n",
+      "sample_values": {
+        "nama_decorator": "with_bearer_auth",
+        "nama_class": "TokenProvider"
+      }
+    },
+    {
+      "id": "response_cache",
+      "title": "HTTP Response Cache",
+      "description": "Cache GET response dengan TTL. Thread-safe in-memory cache.",
+      "imports": ["time", "threading"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "ResponseCache"},
+        {"name": "default_ttl", "label": "Default TTL detik", "type": "int", "default": 300}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Thread-safe in-memory response cache with TTL.\"\"\"\n    def __init__(self, default_ttl={{default_ttl}}):\n        self.default_ttl = default_ttl\n        self._cache = {}\n        self._lock = threading.Lock()\n\n    def _make_key(self, method, url, params=None):\n        key = method.upper() + ':' + url\n        if params:\n            import urllib.parse\n            key += '?' + urllib.parse.urlencode(sorted(params.items()))\n        return key\n\n    def get(self, method, url, params=None):\n        key = self._make_key(method, url, params)\n        with self._lock:\n            entry = self._cache.get(key)\n            if entry and time.time() < entry['expires_at']:\n                return entry['data']\n            if entry:\n                del self._cache[key]\n        return None\n\n    def put(self, method, url, data, params=None, ttl=None):\n        key = self._make_key(method, url, params)\n        ttl = ttl if ttl is not None else self.default_ttl\n        with self._lock:\n            self._cache[key] = {\n                'data': data,\n                'expires_at': time.time() + ttl,\n            }\n\n    def clear(self):\n        with self._lock:\n            self._cache.clear()\n\n    def cleanup(self):\n        now = time.time()\n        with self._lock:\n            expired = [k for k, v in self._cache.items() if now >= v['expires_at']]\n            for k in expired:\n                del self._cache[k]\n",
+      "sample_values": {
+        "nama_class": "ResponseCache",
+        "default_ttl": 300
+      }
+    },
+    {
+      "id": "circuit_breaker_http",
+      "title": "HTTP Circuit Breaker",
+      "description": "Pattern circuit breaker: stop panggil API yang gagal berturut-turut. State machine CLOSED→OPEN→HALF_OPEN.",
+      "imports": ["time", "threading"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "CircuitBreaker"},
+        {"name": "failure_threshold", "label": "Failure threshold", "type": "int", "default": 5},
+        {"name": "recovery_timeout", "label": "Recovery timeout (detik)", "type": "int", "default": 60}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Circuit breaker for HTTP calls. States: CLOSED, OPEN, HALF_OPEN.\"\"\"\n    CLOSED = 'CLOSED'\n    OPEN = 'OPEN'\n    HALF_OPEN = 'HALF_OPEN'\n\n    def __init__(self, failure_threshold={{failure_threshold}}, recovery_timeout={{recovery_timeout}}):\n        self.failure_threshold = failure_threshold\n        self.recovery_timeout = recovery_timeout\n        self._state = self.CLOSED\n        self._failure_count = 0\n        self._last_failure_time = 0\n        self._lock = threading.Lock()\n\n    @property\n    def state(self):\n        with self._lock:\n            if self._state == self.OPEN:\n                if time.time() - self._last_failure_time >= self.recovery_timeout:\n                    self._state = self.HALF_OPEN\n            return self._state\n\n    def call(self, func, *args, **kwargs):\n        \"\"\"Execute func with circuit breaker protection.\"\"\"\n        current = self.state\n        if current == self.OPEN:\n            raise RuntimeError('Circuit breaker is OPEN')\n        try:\n            result = func(*args, **kwargs)\n            self._on_success()\n            return result\n        except Exception as exc:\n            self._on_failure()\n            raise\n\n    def _on_success(self):\n        with self._lock:\n            self._failure_count = 0\n            self._state = self.CLOSED\n\n    def _on_failure(self):\n        with self._lock:\n            self._failure_count += 1\n            self._last_failure_time = time.time()\n            if self._failure_count >= self.failure_threshold:\n                self._state = self.OPEN\n",
+      "sample_values": {
+        "nama_class": "CircuitBreaker",
+        "failure_threshold": 5,
+        "recovery_timeout": 60
+      }
+    }
+  ]
+}

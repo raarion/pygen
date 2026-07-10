@@ -1,0 +1,90 @@
+{
+  "category": "web_frameworks",
+  "label": "Web Framework Helpers",
+  "templates": [
+    {
+      "id": "flask_blueprint_scaffold",
+      "title": "Flask Blueprint Scaffold Generator",
+      "description": "Generate string berisi file Flask Blueprint + routes CRUD. Tinggal simpan dan pakai.",
+      "imports": [],
+      "requires": {"packages": ["flask"]},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi generator", "type": "identifier", "default": "generate_blueprint"},
+        {"name": "resource_name", "label": "Nama resource (snake_case)", "type": "identifier", "default": "item"},
+        {"name": "resource_label", "label": "Label resource", "type": "text", "default": "Item"}
+      ],
+      "code": "def {{nama_fungsi}}(resource_name='{{resource_name}}', label='{{resource_label}}'):\n    \"\"\"Generate Flask Blueprint code as a string.\n    Returns ready-to-save Python source for a CRUD blueprint.\n    \"\"\"\n    bp_name = resource_name.lower()\n    cls = label or resource_name.title()\n    code = '''from flask import Blueprint, request, jsonify\n\n{bp_var} = Blueprint('{bp_name}', __name__, url_prefix='/{bp_name}')\n\n\n@{bp_var}.route('/', methods=['GET'])\ndef list_{bp_name}():\n    \"\"\"List all {cls} records.\"\"\"\n    # TODO: implement\n    return jsonify({\"data\": []})\n\n\n@{bp_var}.route('/', methods=['POST'])\ndef create_{bp_name}():\n    \"\"\"Create a new {cls}.\"\"\"\n    data = request.get_json()\n    # TODO: validate and save\n    return jsonify({{\"id\": 1, **data}}), 201\n\n\n@{bp_var}.route('/<int:item_id>', methods=['GET'])\ndef get_{bp_name}(item_id):\n    \"\"\"Get {cls} by ID.\"\"\"\n    # TODO: implement\n    return jsonify({{\"id\": item_id}})\n\n\n@{bp_var}.route('/<int:item_id>', methods=['PUT'])\ndef update_{bp_name}(item_id):\n    \"\"\"Update {cls} by ID.\"\"\"\n    data = request.get_json()\n    # TODO: implement\n    return jsonify({{\"id\": item_id, **data}})\n\n\n@{bp_var}.route('/<int:item_id>', methods=['DELETE'])\ndef delete_{bp_name}(item_id):\n    \"\"\"Delete {cls} by ID.\"\"\"\n    # TODO: implement\n    return jsonify({{\"deleted\": item_id}}), 204\n'''.format(bp_var=bp_name, bp_name=bp_name, cls=cls)\n    return code\n",
+      "sample_values": {
+        "nama_fungsi": "generate_blueprint",
+        "resource_name": "item",
+        "resource_label": "Item"
+      }
+    },
+    {
+      "id": "fastapi_router_scaffold",
+      "title": "FastAPI Router Scaffold Generator",
+      "description": "Generate string berisi file FastAPI APIRouter dengan CRUD stubs + Pydantic model.",
+      "imports": [],
+      "requires": {"packages": ["fastapi"], "python": ">=3.8"},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi generator", "type": "identifier", "default": "generate_router"},
+        {"name": "resource_name", "label": "Nama resource (snake_case)", "type": "identifier", "default": "item"},
+        {"name": "resource_label", "label": "Label resource (PascalCase)", "type": "text", "default": "Item"}
+      ],
+      "code": "def {{nama_fungsi}}(resource_name='{{resource_name}}', label='{{resource_label}}'):\n    \"\"\"Generate FastAPI APIRouter code as a string.\n    Returns ready-to-save Python source with CRUD routes + Pydantic model.\n    \"\"\"\n    snake = resource_name.lower()\n    cls = label or resource_name.title()\n    code = '''from fastapi import APIRouter, HTTPException\nfrom pydantic import BaseModel\nfrom typing import List, Optional\n\nrouter = APIRouter(prefix='/{prefix}', tags=['{cls}'])\n\n\nclass {cls}Create(BaseModel):\n    name: str\n    description: Optional[str] = None\n\n\nclass {cls}Response({cls}Create):\n    id: int\n\n\n@router.get('/', response_model=List[{cls}Response])\nasync def list_{snake}():\n    \"\"\"List all {cls} records.\"\"\"\n    # TODO: implement\n    return []\n\n\n@router.post('/', response_model={cls}Response, status_code=201)\nasync def create_{snake}(item: {cls}Create):\n    \"\"\"Create a new {cls}.\"\"\"\n    # TODO: implement\n    return {cls}Response(id=1, **item.dict())\n\n\n@router.get('/{item_id}', response_model={cls}Response)\nasync def get_{snake}(item_id: int):\n    \"\"\"Get {cls} by ID.\"\"\"\n    # TODO: implement\n    raise HTTPException(status_code=404, detail='Not found')\n\n\n@router.put('/{item_id}', response_model={cls}Response)\nasync def update_{snake}(item_id: int, item: {cls}Create):\n    \"\"\"Update {cls} by ID.\"\"\"\n    # TODO: implement\n    return {cls}Response(id=item_id, **item.dict())\n\n\n@router.delete('/{item_id}', status_code=204)\nasync def delete_{snake}(item_id: int):\n    \"\"\"Delete {cls} by ID.\"\"\"\n    # TODO: implement\n    return None\n'''.replace('{prefix}', snake).replace('{cls}', cls).replace('{snake}', snake)\n    return code\n",
+      "sample_values": {
+        "nama_fungsi": "generate_router",
+        "resource_name": "item",
+        "resource_label": "Item"
+      }
+    },
+    {
+      "id": "middleware_timer",
+      "title": "Request Timing Middleware",
+      "description": "WSGI middleware yang log durasi setiap request. Bisa dipakai di Flask/Django/Falcon.",
+      "imports": ["time", "sys"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class middleware", "type": "identifier", "default": "TimingMiddleware"},
+        {"name": "slow_threshold_ms", "label": "Threshold 'slow request' (ms)", "type": "int", "default": 1000}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"WSGI middleware that logs request duration.\n    Usage: app = TimingMiddleware(app)\n    \"\"\"\n    def __init__(self, app, slow_threshold_ms={{slow_threshold_ms}}):\n        self.app = app\n        self.slow_threshold_ms = slow_threshold_ms\n\n    def __call__(self, environ, start_response):\n        start_time = time.monotonic()\n        status_holder = [None]\n\n        def _log_start_response(status, response_headers, exc_info=None):\n            status_holder[0] = status\n            return start_response(status, response_headers, exc_info)\n\n        try:\n            result = self.app(environ, _log_start_response)\n            return result\n        finally:\n            elapsed_ms = (time.monotonic() - start_time) * 1000\n            method = environ.get('REQUEST_METHOD', '?')\n            path = environ.get('PATH_INFO', '?')\n            status = status_holder[0] or '???' \n            level = 'SLOW' if elapsed_ms > self.slow_threshold_ms else 'OK'\n            msg = '[%s] %s %s -> %s (%.1f ms)' % (level, method, path, status, elapsed_ms)\n            sys.stderr.write(msg + '\\n')\n",
+      "sample_values": {
+        "nama_class": "TimingMiddleware",
+        "slow_threshold_ms": 1000
+      }
+    },
+    {
+      "id": "cors_headers",
+      "title": "CORS Header Helper",
+      "description": "Generate CORS headers untuk response. Support origin whitelist, methods, headers.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "CORSHelper"},
+        {"name": "default_origin", "label": "Default allowed origin", "type": "text", "default": "*"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"CORS header generator.\n    Returns dict of headers to add to HTTP response.\n    \"\"\"\n    def __init__(self, allowed_origins=None, allowed_methods=None, allowed_headers=None, max_age=86400):\n        self.allowed_origins = allowed_origins or ['{{default_origin}}']\n        self.allowed_methods = allowed_methods or ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']\n        self.allowed_headers = allowed_headers or ['Content-Type', 'Authorization']\n        self.max_age = max_age\n\n    def _origin_allowed(self, origin):\n        if '*' in self.allowed_origins:\n            return True\n        return origin in self.allowed_origins\n\n    def get_headers(self, request_origin=None):\n        \"\"\"Generate CORS headers based on request origin.\"\"\"\n        headers = {}\n        if request_origin and self._origin_allowed(request_origin):\n            headers['Access-Control-Allow-Origin'] = request_origin\n            headers['Vary'] = 'Origin'\n        elif '*' in self.allowed_origins:\n            headers['Access-Control-Allow-Origin'] = '*'\n        else:\n            return {}\n        headers['Access-Control-Allow-Methods'] = ', '.join(self.allowed_methods)\n        headers['Access-Control-Allow-Headers'] = ', '.join(self.allowed_headers)\n        headers['Access-Control-Max-Age'] = str(self.max_age)\n        return headers\n\n    def get_preflight_headers(self, request_origin=None):\n        \"\"\"Headers for OPTIONS preflight response.\"\"\"\n        return self.get_headers(request_origin)\n",
+      "sample_values": {
+        "nama_class": "CORSHelper",
+        "default_origin": "*"
+      }
+    },
+    {
+      "id": "request_validator",
+      "title": "Request Body Validator",
+      "description": "Validasi request body terhadap schema sederhana (tipe, required, range). Stdlib only.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class validator", "type": "identifier", "default": "RequestValidator"},
+        {"name": "nama_exception", "label": "Nama class exception", "type": "identifier", "default": "ValidationError"}
+      ],
+      "code": "class {{nama_exception}}(Exception):\n    \"\"\"Raised when request validation fails.\"\"\"\n    def __init__(self, errors):\n        self.errors = errors\n        super().__init__(str(errors))\n\n\nclass {{nama_class}}:\n    \"\"\"Validate request data against a simple schema.\n    Schema format: {'field_name': {'type': str, 'required': True, 'min': 0, 'max': 100}}\n    \"\"\"\n    TYPE_MAP = {'str': str, 'int': int, 'float': float, 'bool': bool, 'list': list, 'dict': dict}\n\n    def __init__(self, schema):\n        self.schema = schema\n\n    def validate(self, data):\n        \"\"\"Validate data against schema. Raise ValidationError if invalid.\n        Returns cleaned data dict.\n        \"\"\"\n        errors = []\n        cleaned = {}\n        for field, rules in self.schema.items():\n            required = rules.get('required', False)\n            expected_type = rules.get('type')\n            if field not in data:\n                if required:\n                    errors.append({'field': field, 'error': 'required'})\n                continue\n            value = data[field]\n            if expected_type:\n                type_cls = self.TYPE_MAP.get(expected_type, expected_type)\n                if not isinstance(value, type_cls):\n                    errors.append({'field': field, 'error': 'type', 'expected': expected_type, 'got': type(value).__name__})\n                    continue\n            if 'min' in rules and isinstance(value, (int, float)) and value < rules['min']:\n                errors.append({'field': field, 'error': 'min', 'min': rules['min']})\n            if 'max' in rules and isinstance(value, (int, float)) and value > rules['max']:\n                errors.append({'field': field, 'error': 'max', 'max': rules['max']})\n            if 'min_length' in rules and isinstance(value, str) and len(value) < rules['min_length']:\n                errors.append({'field': field, 'error': 'min_length', 'min': rules['min_length']})\n            if 'max_length' in rules and isinstance(value, str) and len(value) > rules['max_length']:\n                errors.append({'field': field, 'error': 'max_length', 'max': rules['max_length']})\n            if 'choices' in rules and value not in rules['choices']:\n                errors.append({'field': field, 'error': 'choices', 'allowed': rules['choices']})\n            cleaned[field] = value\n        if errors:\n            raise {{nama_exception}}(errors)\n        return cleaned\n",
+      "sample_values": {
+        "nama_class": "RequestValidator",
+        "nama_exception": "ValidationError"
+      }
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "category": "networking",
+  "label": "Networking",
+  "templates": [
+    {
+      "id": "simple_tcp_server",
+      "title": "Simple TCP Echo Server",
+      "description": "Socket server yang terima koneksi dan echo balik data yang diterima. stdlib only.",
+      "imports": ["socket", "threading"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "EchoServer"},
+        {"name": "host", "label": "Host bind", "type": "text", "default": "127.0.0.1"},
+        {"name": "port", "label": "Port", "type": "int", "default": 9999}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Simple TCP echo server.\"\"\"\n    def __init__(self, host='{{host}}', port={{port}}):\n        self.host = host\n        self.port = port\n        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)\n        self._running = False\n\n    def _handle_client(self, conn, addr):\n        try:\n            while self._running:\n                data = conn.recv(4096)\n                if not data:\n                    break\n                conn.sendall(data)\n        finally:\n            conn.close()\n\n    def start(self):\n        self._sock.bind((self.host, self.port))\n        self._sock.listen(5)\n        self._running = True\n        self._sock.settimeout(1.0)\n        while self._running:\n            try:\n                conn, addr = self._sock.accept()\n                t = threading.Thread(target=self._handle_client, args=(conn, addr), daemon=True)\n                t.start()\n            except socket.timeout:\n                continue\n\n    def stop(self):\n        self._running = False\n        self._sock.close()\n",
+      "sample_values": {
+        "nama_class": "EchoServer",
+        "host": "127.0.0.1",
+        "port": 9999
+      }
+    },
+    {
+      "id": "simple_tcp_client",
+      "title": "Simple TCP Client",
+      "description": "Socket client yang konek ke server, kirim data, terima balasan. stdlib only.",
+      "imports": ["socket"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "TCPClient"},
+        {"name": "timeout", "label": "Timeout detik", "type": "int", "default": 10}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Simple TCP client.\"\"\"\n    def __init__(self, host, port, timeout={{timeout}}):\n        self.host = host\n        self.port = port\n        self.timeout = timeout\n        self._sock = None\n\n    def connect(self):\n        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n        self._sock.settimeout(self.timeout)\n        self._sock.connect((self.host, self.port))\n\n    def send(self, data):\n        if isinstance(data, str):\n            data = data.encode('utf-8')\n        self._sock.sendall(data)\n\n    def recv(self, bufsize=4096):\n        return self._sock.recv(bufsize)\n\n    def close(self):\n        if self._sock:\n            self._sock.close()\n            self._sock = None\n\n    def __enter__(self):\n        self.connect()\n        return self\n\n    def __exit__(self, *exc):\n        self.close()\n",
+      "sample_values": {
+        "nama_class": "TCPClient",
+        "timeout": 10
+      }
+    },
+    {
+      "id": "simple_http_server",
+      "title": "Simple HTTP Server — http.server wrapper",
+      "description": "Serve static folder dengan custom handler. Wrap http.server stdlib.",
+      "imports": ["http.server", "socketserver"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class handler", "type": "identifier", "default": "StaticHandler"},
+        {"name": "nama_server", "label": "Nama class server", "type": "identifier", "default": "SimpleHTTPServer"},
+        {"name": "port", "label": "Port", "type": "int", "default": 8080}
+      ],
+      "code": "class {{nama_class}}(http.server.SimpleHTTPRequestHandler):\n    \"\"\"Static file handler with logging.\"\"\"\n    def log_message(self, fmt, *args):\n        import sys\n        sys.stderr.write(\"[%s] %s\\n\" % (self.log_date_time_string(), fmt % args))\n\n\nclass {{nama_server}}:\n    \"\"\"Simple HTTP server wrapper.\"\"\"\n    def __init__(self, directory='.', port={{port}}, handler_class=None):\n        self.directory = directory\n        self.port = port\n        self.handler_class = handler_class or {{nama_class}}\n        self._httpd = None\n\n    def start(self):\n        import os\n        os.chdir(self.directory)\n        self._httpd = socketserver.TCPServer(('', self.port), self.handler_class)\n        self._httpd.serve_forever()\n\n    def stop(self):\n        if self._httpd:\n            self._httpd.shutdown()\n",
+      "sample_values": {
+        "nama_class": "StaticHandler",
+        "nama_server": "SimpleHTTPServer",
+        "port": 8080
+      }
+    },
+    {
+      "id": "port_scanner",
+      "title": "TCP Port Scanner",
+      "description": "Scan port mana yang terbuka di host tertentu. stdlib only.",
+      "imports": ["socket"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "scan_ports"},
+        {"name": "timeout", "label": "Timeout per port (detik)", "type": "int", "default": 1}
+      ],
+      "code": "def {{nama_fungsi}}(host, start_port, end_port, timeout={{timeout}}):\n    \"\"\"Scan TCP port range. Return list of open ports.\"\"\"\n    open_ports = []\n    for port in range(start_port, end_port + 1):\n        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n        sock.settimeout(timeout)\n        result = sock.connect_ex((host, port))\n        if result == 0:\n            open_ports.append(port)\n        sock.close()\n    return open_ports\n",
+      "sample_values": {
+        "nama_fungsi": "scan_ports",
+        "timeout": 1
+      }
+    },
+    {
+      "id": "dns_lookup",
+      "title": "DNS Lookup — A/AAAA/MX records",
+      "description": "Resolve hostname ke IP address. Support IPv4/IPv6. stdlib only.",
+      "imports": ["socket"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "dns_lookup"}
+      ],
+      "code": "def {{nama_fungsi}}(hostname):\n    \"\"\"Resolve hostname to IP addresses (IPv4 + IPv6).\n    Returns dict with 'ipv4' and 'ipv6' lists.\"\"\"\n    results = {'ipv4': [], 'ipv6': []}\n    try:\n        infos = socket.getaddrinfo(hostname, None)\n        for info in infos:\n            family = info[0]\n            addr = info[4][0]\n            if family == socket.AF_INET:\n                if addr not in results['ipv4']:\n                    results['ipv4'].append(addr)\n            elif family == socket.AF_INET6:\n                if addr not in results['ipv6']:\n                    results['ipv6'].append(addr)\n    except socket.gaierror:\n        pass\n    return results\n",
+      "sample_values": {
+        "nama_fungsi": "dns_lookup"
+      }
+    },
+    {
+      "id": "validate_ip",
+      "title": "IP Address Validator",
+      "description": "Validasi IPv4/IPv6 + cek private/loopback. stdlib ipaddress.",
+      "imports": ["ipaddress"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "validate_ip"}
+      ],
+      "code": "def {{nama_fungsi}}(ip_str):\n    \"\"\"Validate IP address string.\n    Returns dict: {'valid': bool, 'version': 4|6|None, 'is_private': bool, 'is_loopback': bool}\n    \"\"\"\n    result = {'valid': False, 'version': None, 'is_private': False, 'is_loopback': False}\n    try:\n        addr = ipaddress.ip_address(ip_str)\n        result['valid'] = True\n        result['version'] = addr.version\n        result['is_private'] = addr.is_private\n        result['is_loopback'] = addr.is_loopback\n    except ValueError:\n        pass\n    return result\n",
+      "sample_values": {
+        "nama_fungsi": "validate_ip"
+      }
+    },
+    {
+      "id": "url_parser",
+      "title": "URL Decomposer — parsed URL ke komponen",
+      "description": "Pecah URL jadi scheme, host, port, path, query, fragment. stdlib urllib.",
+      "imports": ["urllib.parse"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "parse_url"}
+      ],
+      "code": "def {{nama_fungsi}}(url):\n    \"\"\"Parse URL into components.\n    Returns dict with scheme, host, port, path, query (dict), fragment.\n    \"\"\"\n    parsed = urllib.parse.urlparse(url)\n    query_params = dict(urllib.parse.parse_qsl(parsed.query))\n    port = parsed.port\n    if port is None:\n        if parsed.scheme == 'https':\n            port = 443\n        elif parsed.scheme == 'http':\n            port = 80\n    return {\n        'scheme': parsed.scheme,\n        'host': parsed.hostname or '',\n        'port': port,\n        'path': parsed.path,\n        'query': query_params,\n        'fragment': parsed.fragment,\n    }\n",
+      "sample_values": {
+        "nama_fungsi": "parse_url"
+      }
+    },
+    {
+      "id": "is_reachable",
+      "title": "Host Reachability Checker",
+      "description": "Cek apakah host:port bisa dihubungi via TCP connect. stdlib only.",
+      "imports": ["socket"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "is_reachable"},
+        {"name": "timeout", "label": "Timeout detik", "type": "int", "default": 3}
+      ],
+      "code": "def {{nama_fungsi}}(host, port, timeout={{timeout}}):\n    \"\"\"Check if host:port is reachable via TCP connect.\n    Returns dict with 'reachable' (bool) and 'latency_ms' (float or None).\n    \"\"\"\n    import time\n    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n    sock.settimeout(timeout)\n    start = time.monotonic()\n    try:\n        sock.connect((host, port))\n        elapsed = (time.monotonic() - start) * 1000\n        sock.close()\n        return {'reachable': True, 'latency_ms': round(elapsed, 2)}\n    except (socket.timeout, socket.error, OSError):\n        return {'reachable': False, 'latency_ms': None}\n",
+      "sample_values": {
+        "nama_fungsi": "is_reachable",
+        "timeout": 3
+      }
+    }
+  ]
+}
