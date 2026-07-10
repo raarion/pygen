@@ -1,0 +1,61 @@
+name: Deploy PyGen Web UI to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Rebuild catalog from templates
+        run: python3 build_webui.py
+
+      - name: Verify catalog
+        run: |
+          echo "Catalog size: $(wc -c < pygen/webui/catalog.json) bytes"
+          python3 -c "import json; d=json.load(open('pygen/webui/catalog.json')); print(f'Templates: {d[\"template_count\"]}, Domains: {len(d[\"domains\"])}')"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Build Jekyll (disabled via .nojekyll)
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp .nojekyll _site/
+          mkdir -p _site/pygen/webui
+          cp pygen/webui/catalog.json _site/pygen/webui/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
