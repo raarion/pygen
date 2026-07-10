@@ -8,11 +8,11 @@ import datetime
 from .validator import validate_syntax
 
 HEADER_TEMPLATE = '''"""
-File ini dihasilkan otomatis oleh PromptGen Forge.
+File ini dihasilkan otomatis oleh PyGen.
 Dibuat: {timestamp}
 Jumlah fungsi/komponen: {count}
 
-PromptGen Forge adalah generator kode deterministik berbasis template —
+PyGen adalah generator kode deterministik berbasis template —
 TIDAK ada AI/LLM yang terlibat dalam pembuatan kode ini.
 """
 

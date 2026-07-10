@@ -8,10 +8,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from promptgen.core.registry import load_categories, TemplateBankError
-from promptgen.core.template_engine import render, FieldValidationError
-from promptgen.core.validator import validate_syntax, CodeValidationError
-from promptgen.core.compositor import compose, GeneratedUnit
+from pygen.core.registry import load_categories, TemplateBankError
+from pygen.core.template_engine import render, FieldValidationError
+from pygen.core.validator import validate_syntax, CodeValidationError
+from pygen.core.compositor import compose, GeneratedUnit
 
 
 def _prompt_choice(prompt_text: str, options: list) -> int:
@@ -55,7 +55,7 @@ def _collect_field_values(template: dict) -> dict:
 
 def run_wizard():
     print("=" * 60)
-    print("  PromptGen Forge — Generator Fungsi Python Deterministik")
+    print("  PyGen — Generator Fungsi Python Deterministik")
     print("  (tanpa AI/LLM — 100% berbasis template & aturan tetap)")
     print("=" * 60)
 

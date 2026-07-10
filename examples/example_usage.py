@@ -1,4 +1,4 @@
-"""Contoh: memakai engine PromptGen Forge secara PROGRAMATIK, tanpa wizard
+"""Contoh: memakai engine PyGen secara PROGRAMATIK, tanpa wizard
 interaktif. Berguna kalau kamu mau integrasikan generator ini ke script
 atau tool lain (mis. auto-generate boilerplate saat setup proyek baru).
 """
@@ -8,10 +8,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from promptgen.core.registry import load_categories, find_template
-from promptgen.core.template_engine import render
-from promptgen.core.validator import validate_syntax
-from promptgen.core.compositor import compose, GeneratedUnit
+from pygen.core.registry import load_categories, find_template
+from pygen.core.template_engine import render
+from pygen.core.validator import validate_syntax
+from pygen.core.compositor import compose, GeneratedUnit
 
 
 def main():

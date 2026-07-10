@@ -12,10 +12,10 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from promptgen.core.registry import load_categories
-from promptgen.core.template_engine import render
-from promptgen.core.validator import validate_syntax
-from promptgen.core.compositor import compose, GeneratedUnit
+from pygen.core.registry import load_categories
+from pygen.core.template_engine import render
+from pygen.core.validator import validate_syntax
+from pygen.core.compositor import compose, GeneratedUnit
 
 
 class TestTemplateBank(unittest.TestCase):

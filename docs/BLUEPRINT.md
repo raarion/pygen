@@ -1,4 +1,4 @@
-# BLUEPRINT — PromptGen Forge
+# BLUEPRINT — PyGen
 
 ## 1. Tujuan
 Alat CLI yang membantu pemula *prompt engineering* menghasilkan kode Python
@@ -23,8 +23,8 @@ output sama, persis.
    - Setiap kode hasil generate divalidasi dengan `ast.parse()` sebelum
      ditunjukkan ke user — kalau gagal parse, sistem menolak menampilkannya.
 4. **Extensible via data, bukan via kode.** Template disimpan sebagai file
-   JSON di `promptgen/templates/*.json` (bank data), terpisah total dari
-   logic engine (`promptgen/core/*.py`). Menambah kemampuan baru = menambah
+   JSON di `pygen/templates/*.json` (bank data), terpisah total dari
+   logic engine (`pygen/core/*.py`). Menambah kemampuan baru = menambah
    entri JSON, tidak perlu sentuh kode inti.
 5. **Composable.** Setiap template mendeklarasikan `imports` miliknya sendiri.
    Compositor menggabungkan beberapa fungsi jadi satu file, dedup import,
@@ -104,5 +104,5 @@ Field `type` yang didukung: `identifier` (harus valid nama variabel Python),
 - Tambah kategori `data_pipeline` (loader dataset evaluasi prompt).
 - Tambah field `type: "code_snippet"` untuk slot lanjutan (tetap lewat
   whitelist, bukan eval).
-- Ekspor riwayat wizard ke file `.promptgen_session.json` supaya user bisa
+- Ekspor riwayat wizard ke file `.pygen_session.json` supaya user bisa
   reproduce hasil yang sama persis kapan saja (reprodusibilitas penuh).

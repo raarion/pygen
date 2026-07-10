@@ -1,11 +1,11 @@
 # Cara Menambah Template Baru
 
-Template = data, bukan kode. Tambahkan tanpa menyentuh `promptgen/core/`.
+Template = data, bukan kode. Tambahkan tanpa menyentuh `pygen/core/`.
 
 ## Langkah
 
-1. Buka file kategori yang sesuai di `promptgen/templates/`, atau buat file
-   kategori baru `promptgen/templates/nama_kategori.json` dengan isi awal:
+1. Buka file kategori yang sesuai di `pygen/templates/`, atau buat file
+   kategori baru `pygen/templates/nama_kategori.json` dengan isi awal:
    ```json
    { "category": "nama_kategori", "label": "Nama Tampilan Kategori", "templates": [] }
    ```

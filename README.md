@@ -1,4 +1,4 @@
-# PromptGen Forge
+# PyGen
 
 Generator fungsi Python **deterministik** untuk pemula yang sedang belajar
 *prompt engineering*. Tidak ada AI/LLM yang dipanggil di dalam alat ini
@@ -10,7 +10,7 @@ dan diulang persis sama.
 
 Belajar prompt engineering sering kepentok kebutuhan Python: manggil API,
 parsing JSON dari respons model, testing beberapa varian prompt, dsb.
-PromptGen Forge menghilangkan beban itu — kamu jawab beberapa pertanyaan
+PyGen menghilangkan beban itu — kamu jawab beberapa pertanyaan
 lewat wizard, dapat kode Python siap pakai (dan boleh dibaca-baca buat
 belajar pelan-pelan).
 
@@ -20,14 +20,14 @@ Tidak butuh dependency eksternal — murni Python standard library.
 
 ```bash
 # Cukup pastikan Python 3.8+ terpasang, lalu langsung jalankan:
-python3 -m promptgen.cli_entry
+python3 -m pygen.cli_entry
 ```
 
 Atau install sebagai package (opsional):
 
 ```bash
 pip install -e .
-promptgen
+pygen
 ```
 
 ## Cara Pakai
@@ -44,8 +44,8 @@ promptgen
 ## Struktur Proyek
 
 ```
-promptgen_toolkit/
-├── promptgen/
+pygen_toolkit/
+├── pygen/
 │   ├── core/
 │   │   ├── registry.py         # memuat & validasi bank data template
 │   │   ├── template_engine.py  # render placeholder {{field}} -> kode
@@ -85,7 +85,7 @@ promptgen_toolkit/
 ## Menambah Template Baru
 
 Lihat `docs/CONTRIBUTING_TEMPLATES.md`. Intinya: tambah entri JSON di
-`promptgen/templates/`, isi `sample_values`, jalankan test — tidak perlu
+`pygen/templates/`, isi `sample_values`, jalankan test — tidak perlu
 sentuh kode Python inti sama sekali.
 
 ## Menjalankan Test

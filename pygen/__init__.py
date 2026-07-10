@@ -1,4 +1,4 @@
-"""PromptGen Forge — generator fungsi Python deterministik untuk pemula
+"""PyGen — generator fungsi Python deterministik untuk pemula
 prompt engineering. Tidak memanggil AI/LLM apapun secara internal.
 """
 

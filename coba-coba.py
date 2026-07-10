@@ -1,9 +1,9 @@
 """
-File ini dihasilkan otomatis oleh PromptGen Forge.
+File ini dihasilkan otomatis oleh PyGen.
 Dibuat: 2026-07-10T17:07:08
 Jumlah fungsi/komponen: 2
 
-PromptGen Forge adalah generator kode deterministik berbasis template —
+PyGen adalah generator kode deterministik berbasis template —
 TIDAK ada AI/LLM yang terlibat dalam pembuatan kode ini.
 """
 
