@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PyGen — Generator Fungsi Python Deterministik</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9;
+  --text-dim: #8b949e; --accent: #58a6ff; --accent2: #3fb950; --accent3: #d2991d;
+  --danger: #f85149; --code-bg: #0d1117; --radius: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+a { color: var(--accent); }
+
+/* Header */
+.header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 10; }
+.header .logo { font-size: 1.3em; font-weight: 700; color: var(--accent2); white-space: nowrap; }
+.header .logo span { color: var(--text-dim); font-weight: 400; font-size: .7em; }
+.header .search { flex: 1; max-width: 420px; }
+.header .search input { width: 100%; padding: 8px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: .9em; outline: none; }
+.header .search input:focus { border-color: var(--accent); }
+.header .stats { font-size: .8em; color: var(--text-dim); white-space: nowrap; }
+.header .actions { display: flex; gap: 8px; }
+
+/* Layout */
+.layout { display: flex; height: calc(100vh - 57px); }
+.sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 12px; flex-shrink: 0; }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.main-top { padding: 16px 24px 8px; flex-shrink: 0; }
+.main-body { flex: 1; overflow-y: auto; padding: 8px 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+/* Sidebar */
+.domain-group { margin-bottom: 6px; }
+.domain-header { font-weight: 600; font-size: .85em; padding: 6px 8px; color: var(--text-dim); cursor: pointer; border-radius: 4px; display: flex; align-items: center; gap: 6px; }
+.domain-header:hover { background: rgba(88,166,255,.08); }
+.domain-header .arrow { font-size: .7em; transition: transform .15s; }
+.domain-header.open .arrow { transform: rotate(90deg); }
+.domain-items { padding-left: 12px; display: none; }
+.domain-header.open + .domain-items { display: block; }
+.cat-header { font-size: .8em; color: var(--text-dim); padding: 4px 8px 2px; text-transform: uppercase; letter-spacing: .5px; }
+.tpl-item { font-size: .82em; padding: 4px 8px 4px 16px; cursor: pointer; border-radius: 3px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpl-item:hover { background: rgba(88,166,255,.12); }
+.tpl-item.active { background: rgba(88,166,255,.2); color: var(--accent); }
+
+/* Top bar: path + buttons */
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: .85em; color: var(--text-dim); margin-bottom: 8px; flex-wrap: wrap; }
+.breadcrumb .sep { color: var(--border); }
+.breadcrumb .active { color: var(--accent); font-weight: 600; }
+.current-template { font-size: 1.1em; font-weight: 600; margin-bottom: 4px; }
+.current-template-desc { font-size: .85em; color: var(--text-dim); }
+.mode-tabs { display: flex; gap: 2px; margin-top: 10px; }
+.mode-tab { padding: 6px 16px; border: 1px solid var(--border); background: none; color: var(--text-dim); cursor: pointer; font-size: .85em; border-radius: var(--radius) var(--radius) 0 0; border-bottom: none; }
+.mode-tab.active { background: var(--surface); color: var(--accent); }
+
+/* Form */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid .full { grid-column: 1 / -1; }
+.form-group { }
+.form-group label { display: block; font-size: .8em; color: var(--text-dim); margin-bottom: 4px; }
+.form-group label .type-badge { font-size: .75em; background: var(--border); padding: 1px 6px; border-radius: 3px; margin-left: 6px; color: var(--accent2); }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px;
+  background: var(--bg); color: var(--text); font-size: .9em; font-family: inherit;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); outline: none; }
+.form-group input.error { border-color: var(--danger); }
+.form-group .error-msg { font-size: .75em; color: var(--danger); margin-top: 2px; display: none; }
+.form-group input.error + .error-msg { display: block; }
+
+/* Code */
+.code-section { flex: 1; display: flex; flex-direction: column; min-height: 200px; }
+.code-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+.code-toolbar .label { font-size: .8em; color: var(--text-dim); }
+.code-toolbar .btns { display: flex; gap: 6px; }
+.code-output { flex: 1; background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; overflow: auto; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: .85em; line-height: 1.5; white-space: pre-wrap; position: relative; }
+.code-output .kw { color: #ff7b72; }
+.code-output .str { color: #a5d6ff; }
+.code-output .cmt { color: #8b949e; font-style: italic; }
+.code-output .fn { color: #d2a8ff; }
+.code-output .num { color: #79c0ff; }
+
+/* Buttons */
+.btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: .85em; display: inline-flex; align-items: center; gap: 6px; transition: all .15s; }
+.btn:hover { background: #21262d; }
+.btn.primary { background: #238636; border-color: #238636; color: #fff; }
+.btn.primary:hover { background: #2ea043; }
+.btn.accent { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+.btn.accent:hover { background: #388bfd; }
+.btn.small { padding: 3px 10px; font-size: .78em; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Composed units list */
+.units-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.unit-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 3px 10px; font-size: .78em; display: flex; align-items: center; gap: 6px; }
+.unit-chip .remove { cursor: pointer; color: var(--text-dim); font-weight: bold; font-size: 1.1em; }
+.unit-chip .remove:hover { color: var(--danger); }
+
+/* Toast */
+.toast { position: fixed; bottom: 20px; right: 20px; background: #238636; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: .85em; z-index: 100; animation: fadeInOut 2.5s forwards; }
+@keyframes fadeInOut { 0% { opacity: 0; transform: translateY(10px); } 10% { opacity: 1; transform: translateY(0); } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Mobile */
+@media (max-width: 768px) {
+  .layout { flex-direction: column; }
+  .sidebar { width: 100%; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border); }
+  .form-grid { grid-template-columns: 1fr; }
+  .header .search { max-width: 200px; }
+  .header .stats { display: none; }
+}
+
+/* Empty state */
+.empty { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+.empty h3 { font-size: 1.2em; margin-bottom: 8px; color: var(--text); }
+.empty p { font-size: .9em; max-width: 400px; margin: 0 auto; }
+
+/* Highlight current mode */
+.panel { display: none; }
+.panel.active { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.compose-panel { display: none; }
+.compose-panel.active { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">PyGen <span>v2</span></div>
+  <div class="search"><input type="text" id="searchInput" placeholder="🔍 Cari template... (contoh: csv, http, json)" /></div>
+  <div class="stats" id="statsBar">0 fungsi | 4 domain</div>
+  <div class="actions">
+    <button class="btn accent small" onclick="switchMode('wizard')" id="btnWizard">Wizard</button>
+    <button class="btn small" onclick="switchMode('compose')" id="btnCompose">Compose (<span id="unitCount">0</span>)</button>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <div class="main">
+    <!-- Wizard panel -->
+    <div class="panel active" id="wizardPanel">
+      <div class="main-top">
+        <div class="breadcrumb" id="breadcrumb"><span class="active">Pilih template dari sidebar</span></div>
+        <div class="current-template" id="currentTitle"></div>
+        <div class="current-template-desc" id="currentDesc"></div>
+      </div>
+      <div class="main-body" id="wizardBody">
+        <div class="empty">
+          <h3>👋 Selamat datang di PyGen Web UI</h3>
+          <p>Pilih domain dan template dari sidebar kiri, atau gunakan search bar di atas untuk mencari template. Setiap template akan menampilkan form isian untuk menghasilkan kode Python siap pakai.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compose panel -->
+    <div class="compose-panel" id="composePanel">
+      <div class="main-top">
+        <div style="font-weight:600;margin-bottom:4px">📦 Fungsi Terpilih</div>
+        <div class="units-list" id="unitsList">
+          <span style="color:var(--text-dim);font-size:.85em">Belum ada fungsi. Kembali ke tab Wizard dan tambahkan fungsi.</span>
+        </div>
+      </div>
+      <div class="main-body">
+        <div id="composeOutput" style="flex:1"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast" style="display:none"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════
+const DOMAINS = [{"key": "cli", "label": "CLI & Automation"}, {"key": "data", "label": "File & Data"}, {"key": "prompt_eng", "label": "Prompt Engineering"}, {"key": "web", "label": "Web & Network"}];
+const TEMPLATES = [{"id": "cli_tool_scaffold", "title": "CLI tool scaffold — skeleton argparse lengkap", "description": "Generate file main.py lengkap dengan argparse boilerplate dan struktur proyek.", "imports": ["argparse", "sys"], "requires": {}, "scope": "module", "fields": [{"name": "tool_name", "label": "Nama tool CLI", "type": "identifier", "default": "mycli"}, {"name": "description", "label": "Deskripsi tool", "type": "text", "default": "A command-line utility"}, {"name": "subcommand_name", "label": "Nama subcommand pertama", "type": "identifier", "default": "run"}, {"name": "subcommand_help", "label": "Help text subcommand", "type": "text", "default": "Execute the main action"}], "code": "import argparse\nimport sys\n\n\ndef cmd_{{subcommand_name}}(args):\n    \"\"\"{{subcommand_help}}\"\"\"\n    print(\"Running {{tool_name}} {{subcommand_name}}...\")\n    # TODO: implement your logic here\n    return 0\n\n\ndef main():\n    parser = argparse.ArgumentParser(\n        prog=\"{{tool_name}}\",\n        description=\"{{description}}\"\n    )\n    subparsers = parser.add_subparsers(dest=\"command\", help=\"Available commands\")\n\n    # {{subcommand_name}}\n    p = subparsers.add_parser(\"{{subcommand_name}}\", help=\"{{subcommand_help}}\")\n    p.set_defaults(func=cmd_{{subcommand_name}})\n\n    args = parser.parse_args()\n\n    if not hasattr(args, \"func\"):\n        parser.print_help()\n        return 1\n\n    try:\n        return args.func(args)\n    except Exception as e:\n        print(f\"Error: {e}\", file=sys.stderr)\n        return 1\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n", "sample_values": {"tool_name": "mycli", "description": "A command-line utility", "subcommand_name": "run", "subcommand_help": "Execute the main action"}, "_domain": "cli", "_category": "Argparse Scaffold", "_category_key": "argparse_scaffold"}, {"id": "argparse_typed_args", "title": "Argparse with typed args — parser dengan arg berbasis type", "description": "Argparse parser sederhana dengan positional args typed (int, str, path).", "imports": ["argparse", "os", "sys"], "requires": {}, "fields": [{"name": "tool_name", "label": "Nama tool CLI", "type": "identifier", "default": "calculator"}, {"name": "description", "label": "Deskripsi tool", "type": "text", "default": "A simple calculator"}, {"name": "extra_args", "label": "Tambahan argumen opsional (kosongkan jika tidak perlu)", "type": "optional", "default": ""}], "code": "import argparse\nimport sys\n\n\ndef main():\n    parser = argparse.ArgumentParser(\n        prog=\"{{tool_name}}\",\n        description=\"{{description}}\"\n    )\n    parser.add_argument(\"number\", type=float, help=\"A number\")\n    parser.add_argument(\"--verbose\", \"-v\", action=\"store_true\", help=\"Verbose output\")\n{{#extra_args}}\n    {{extra_args}}\n{{/extra_args}}\n\n    args = parser.parse_args()\n\n    if args.verbose:\n        print(f\"Input: {args.number}\")\n\n    print(f\"Result: {args.number}\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n", "sample_values": {"tool_name": "calculator", "description": "A simple calculator", "extra_args": "parser.add_argument(\"--multiply\", \"-m\", action=\"store_true\", help=\"Multiply instead\")"}, "_domain": "cli", "_category": "Argparse Scaffold", "_category_key": "argparse_scaffold"}, {"id": "run_command", "title": "Run shell command — eksekusi perintah shell", "description": "Jalankan perintah shell, tangkap stdout/stderr/exit code.", "imports": ["subprocess"], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "run_cmd"}, {"name": "default_timeout", "label": "Default timeout (detik)", "type": "int", "default": 60}], "code": "def {{nama_fungsi}}(cmd, timeout={{default_timeout}}, cwd=None, env=None):\n    \"\"\"Jalankan shell command, return (stdout, stderr, returncode).\"\"\"\n    result = subprocess.run(\n        cmd,\n        shell=True,\n        capture_output=True,\n        text=True,\n        timeout=timeout,\n        cwd=cwd,\n        env=env,\n    )\n    return result.stdout, result.stderr, result.returncode\n", "sample_values": {"nama_fungsi": "run_cmd", "default_timeout": 60}, "_domain": "cli", "_category": "Subprocess Tools", "_category_key": "subprocess"}, {"id": "background_worker", "title": "Background worker — jalankan task di background thread", "description": "Decorator untuk menjalankan fungsi di background thread (daemon).", "imports": ["threading", "functools"], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama decorator", "type": "identifier", "default": "background"}], "code": "def {{nama_fungsi}}(func):\n    \"\"\"Decorator: jalankan func di background thread (daemon).\"\"\"\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        thread = threading.Thread(target=func, args=args, kwargs=kwargs, daemon=True)\n        thread.start()\n        return thread\n    return wrapper\n", "sample_values": {"nama_fungsi": "background"}, "_domain": "cli", "_category": "Subprocess Tools", "_category_key": "subprocess"}, {"id": "csv_reader", "title": "CSV Reader — baca CSV ke list of dict", "description": "Baca file CSV dengan header baris pertama, kembalikan list dictionary. Pakai csv bawaan Python.", "imports": ["csv"], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "read_csv"}, {"name": "delimiter", "label": "Delimiter", "type": "choice", "options": [",", ";", "\\t", "|"], "default": ","}], "code": "def {{nama_fungsi}}(filepath, encoding=\"utf-8\"):\n    \"\"\"Baca file CSV dan kembalikan list of dict.\"\"\"\n    rows = []\n    with open(filepath, \"r\", encoding=encoding, newline=\"\") as f:\n        reader = csv.DictReader(f, delimiter='{{delimiter}}')\n        for row in reader:\n            rows.append(dict(row))\n    return rows\n", "sample_values": {"nama_fungsi": "read_csv", "delimiter": ","}, "_domain": "data", "_category": "CSV Tools", "_category_key": "csv_tools"}, {"id": "csv_writer", "title": "CSV Writer — tulis list of dict ke CSV", "description": "Tulis data list of dict ke file CSV dengan header otomatis dari key dict pertama.", "imports": ["csv"], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "write_csv"}, {"name": "delimiter", "label": "Delimiter", "type": "choice", "options": [",", ";", "\\t", "|"], "default": ","}], "code": "def {{nama_fungsi}}(filepath, rows, encoding=\"utf-8\"):\n    \"\"\"Tulis list of dict ke file CSV.\"\"\"\n    if not rows:\n        return\n    fieldnames = list(rows[0].keys())\n    with open(filepath, \"w\", encoding=encoding, newline=\"\") as f:\n        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter='{{delimiter}}')\n        writer.writeheader()\n        writer.writerows(rows)\n", "sample_values": {"nama_fungsi": "write_csv", "delimiter": ","}, "_domain": "data", "_category": "CSV Tools", "_category_key": "csv_tools"}, {"id": "read_text_file", "title": "Read text file — baca isi file teks", "description": "Baca seluruh isi file teks ke string, dengan encoding opsional.", "imports": [], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "read_file"}, {"name": "default_encoding", "label": "Default encoding", "type": "choice", "options": ["utf-8", "latin-1", "ascii"], "default": "utf-8"}, {"name": "strip", "label": "Strip whitespace di awal/akhir?", "type": "bool", "default": false}], "code": "def {{nama_fungsi}}(filepath, encoding=\"{{default_encoding}}\"):\n    \"\"\"Baca dan kembalikan seluruh isi file.\"\"\"\n    with open(filepath, \"r\", encoding=encoding) as f:\n        content = f.read()\n    return content.strip() if {{strip}} else content\n", "sample_values": {"nama_fungsi": "read_file", "default_encoding": "utf-8", "strip": false}, "_domain": "data", "_category": "File Operations", "_category_key": "file_ops"}, {"id": "write_text_file", "title": "Write text file — tulis string ke file", "description": "Tulis (overwrite) string ke file, dengan opsi append.", "imports": ["os"], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "write_file"}, {"name": "default_encoding", "label": "Default encoding", "type": "choice", "options": ["utf-8", "latin-1", "ascii"], "default": "utf-8"}], "code": "def {{nama_fungsi}}(filepath, content, encoding=\"{{default_encoding}}\", append=False):\n    \"\"\"Tulis content ke file. append=True untuk menambah di akhir.\"\"\"\n    mode = \"a\" if append else \"w\"\n    os.makedirs(os.path.dirname(filepath), exist_ok=True) if os.path.dirname(filepath) else None\n    with open(filepath, mode, encoding=encoding) as f:\n        f.write(content)\n", "sample_values": {"nama_fungsi": "write_file", "default_encoding": "utf-8"}, "_domain": "data", "_category": "File Operations", "_category_key": "file_ops"}, {"id": "read_json_file", "title": "JSON reader — baca file JSON", "description": "Baca file JSON dan kembalikan sebagai dict/list Python.", "imports": ["json"], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "read_json"}], "code": "def {{nama_fungsi}}(filepath, encoding=\"utf-8\"):\n    \"\"\"Baca file JSON.\"\"\"\n    with open(filepath, \"r\", encoding=encoding) as f:\n        return json.load(f)\n", "sample_values": {"nama_fungsi": "read_json"}, "_domain": "data", "_category": "JSON Tools", "_category_key": "json_tools"}, {"id": "write_json_file", "title": "JSON writer — tulis data ke file JSON", "description": "Tulis objek Python ke file JSON dengan indentasi.", "imports": ["json"], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "write_json"}, {"name": "indent", "label": "Indentasi (spasi)", "type": "int", "default": 2}], "code": "def {{nama_fungsi}}(filepath, data, encoding=\"utf-8\"):\n    \"\"\"Tulis data ke file JSON.\"\"\"\n    with open(filepath, \"w\", encoding=encoding) as f:\n        json.dump(data, f, indent={{indent}}, ensure_ascii=False)\n", "sample_values": {"nama_fungsi": "write_json", "indent": 2}, "_domain": "data", "_category": "JSON Tools", "_category_key": "json_tools"}, {"id": "generic_api_caller", "title": "Pemanggil API LLM generik (stdlib, tanpa dependency)", "description": "Kirim prompt ke endpoint REST API model bahasa dan ambil teks responsnya. Pakai urllib bawaan Python, tidak perlu install apapun.", "imports": ["json", "urllib.request"], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "call_llm_api"}, {"name": "response_text_key", "label": "Nama key teks jawaban di JSON respons API", "type": "text", "default": "text"}], "code": "def {{nama_fungsi}}(endpoint_url, api_key, prompt, model=\"default-model\", timeout=30):\n    \"\"\"Kirim prompt ke API LLM dan kembalikan teks jawabannya.\"\"\"\n    payload = json.dumps({\n        \"model\": model,\n        \"prompt\": prompt\n    }).encode(\"utf-8\")\n    req = urllib.request.Request(\n        endpoint_url,\n        data=payload,\n        headers={\n            \"Content-Type\": \"application/json\",\n            \"Authorization\": f\"Bearer {api_key}\"\n        },\n        method=\"POST\"\n    )\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        data = json.loads(resp.read().decode(\"utf-8\"))\n    return data.get(\"{{response_text_key}}\", data)\n", "sample_values": {"nama_fungsi": "call_llm_api", "response_text_key": "text"}, "_domain": "prompt_eng", "_category": "API & Koneksi LLM", "_category_key": "api_connection"}, {"id": "retry_handler", "title": "Decorator retry dengan backoff", "description": "Bungkus fungsi pemanggil API supaya otomatis dicoba ulang saat gagal (misal timeout atau rate limit), dengan jeda yang membesar tiap percobaan.", "imports": ["time", "functools"], "fields": [{"name": "nama_fungsi", "label": "Nama decorator", "type": "identifier", "default": "retry_on_failure"}, {"name": "max_attempts", "label": "Jumlah percobaan maksimal", "type": "int", "default": 3}, {"name": "base_delay", "label": "Jeda dasar (detik)", "type": "int", "default": 2}], "code": "def {{nama_fungsi}}(func):\n    \"\"\"Decorator: coba ulang func sampai {{max_attempts}}x jika terjadi exception.\"\"\"\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        last_error = None\n        for attempt in range(1, {{max_attempts}} + 1):\n            try:\n                return func(*args, **kwargs)\n            except Exception as e:\n                last_error = e\n                if attempt < {{max_attempts}}:\n                    time.sleep({{base_delay}} * attempt)\n        raise last_error\n    return wrapper\n", "sample_values": {"nama_fungsi": "retry_on_failure", "max_attempts": 3, "base_delay": 2}, "_domain": "prompt_eng", "_category": "API & Koneksi LLM", "_category_key": "api_connection"}, {"id": "multi_provider_switcher", "title": "Pemilih provider LLM (dispatch by name)", "description": "Kelola beberapa fungsi pemanggil provider berbeda (mis. OpenAI, Anthropic, lokal) dan panggil salah satunya berdasarkan nama string, tanpa ubah kode pemanggil utama.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi dispatcher", "type": "identifier", "default": "call_provider"}], "code": "PROVIDER_REGISTRY = {}\n\ndef register_provider(name):\n    \"\"\"Decorator untuk mendaftarkan fungsi provider baru ke registry.\"\"\"\n    def decorator(func):\n        PROVIDER_REGISTRY[name] = func\n        return func\n    return decorator\n\n\ndef {{nama_fungsi}}(provider_name, *args, **kwargs):\n    \"\"\"Panggil fungsi provider terdaftar berdasarkan nama string.\"\"\"\n    if provider_name not in PROVIDER_REGISTRY:\n        raise ValueError(f\"Provider '{provider_name}' belum terdaftar. Tersedia: {list(PROVIDER_REGISTRY)}\")\n    return PROVIDER_REGISTRY[provider_name](*args, **kwargs)\n", "sample_values": {"nama_fungsi": "call_provider"}, "_domain": "prompt_eng", "_category": "API & Koneksi LLM", "_category_key": "api_connection"}, {"id": "embedding_fetcher", "title": "Ambil vektor embedding dari API LLM", "description": "Kirim teks ke endpoint embedding API dan kembalikan vektor float sebagai list Python. Mendukung batch teks sekaligus untuk efisiensi.", "imports": ["json", "urllib.request"], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "fetch_embeddings"}, {"name": "embedding_key", "label": "Key vektor di respons JSON API", "type": "text", "default": "embedding"}], "code": "def {{nama_fungsi}}(endpoint_url, api_key, texts, model=\"text-embedding-default\", timeout=30):\n    \"\"\"Ambil embedding untuk satu atau beberapa teks.\n    texts: str atau list of str.\n    Kembalikan list of list[float] (satu vektor per teks).\n    \"\"\"\n    if isinstance(texts, str):\n        texts = [texts]\n    payload = json.dumps({\"model\": model, \"input\": texts}).encode(\"utf-8\")\n    req = urllib.request.Request(\n        endpoint_url,\n        data=payload,\n        headers={\n            \"Content-Type\": \"application/json\",\n            \"Authorization\": f\"Bearer {api_key}\",\n        },\n        method=\"POST\",\n    )\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        data = json.loads(resp.read().decode(\"utf-8\"))\n    items = data.get(\"data\", data)\n    if isinstance(items, list) and items and isinstance(items[0], dict):\n        return [item[\"{{embedding_key}}\"] for item in items]\n    return items\n", "sample_values": {"nama_fungsi": "fetch_embeddings", "embedding_key": "embedding"}, "_domain": "prompt_eng", "_category": "Embeddings & Semantic Search", "_category_key": "embeddings"}, {"id": "cosine_similarity", "title": "Hitung cosine similarity antara dua vektor", "description": "Hitung kemiripan semantik antara dua vektor embedding menggunakan cosine similarity murni Python stdlib, tanpa numpy. Nilai 1.0 = identik, 0.0 = tidak berkaitan, -1.0 = berlawanan.", "imports": ["math"], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "cosine_similarity"}], "code": "def {{nama_fungsi}}(vec_a, vec_b):\n    \"\"\"Hitung cosine similarity antara dua vektor float.\n    Kembalikan float antara -1.0 dan 1.0.\n    \"\"\"\n    if len(vec_a) != len(vec_b):\n        raise ValueError(\n            f\"Panjang vektor tidak sama: {len(vec_a)} vs {len(vec_b)}\"\n        )\n    dot = sum(a * b for a, b in zip(vec_a, vec_b))\n    norm_a = math.sqrt(sum(a * a for a in vec_a))\n    norm_b = math.sqrt(sum(b * b for b in vec_b))\n    if norm_a == 0.0 or norm_b == 0.0:\n        return 0.0\n    return dot / (norm_a * norm_b)\n", "sample_values": {"nama_fungsi": "cosine_similarity"}, "_domain": "prompt_eng", "_category": "Embeddings & Semantic Search", "_category_key": "embeddings"}, {"id": "simple_vector_store", "title": "Vector store sederhana dengan nearest-neighbor search", "description": "Simpan pasangan (teks, vektor) dalam memori dan cari dokumen paling mirip dengan query embedding menggunakan cosine similarity. Cocok untuk RAG sederhana tanpa database eksternal.", "imports": ["math"], "fields": [{"name": "nama_kelas", "label": "Nama kelas vector store", "type": "identifier", "default": "SimpleVectorStore"}, {"name": "top_k_default", "label": "Jumlah hasil teratas default", "type": "int", "default": 3}], "code": "class {{nama_kelas}}:\n    \"\"\"Vector store in-memory dengan nearest-neighbor search berbasis cosine similarity.\"\"\"\n\n    def __init__(self):\n        self._store = []  # list of {\"text\": str, \"vector\": list[float], \"metadata\": dict}\n\n    def add(self, text, vector, metadata=None):\n        \"\"\"Tambahkan satu dokumen beserta vektornya ke store.\"\"\"\n        self._store.append({\n            \"text\": text,\n            \"vector\": vector,\n            \"metadata\": metadata or {},\n        })\n\n    def search(self, query_vector, top_k={{top_k_default}}):\n        \"\"\"Cari top_k dokumen paling mirip dengan query_vector.\n        Kembalikan list of dict {text, score, metadata} diurutkan dari paling mirip.\n        \"\"\"\n        scored = []\n        for entry in self._store:\n            score = self._cosine(query_vector, entry[\"vector\"])\n            scored.append({\"text\": entry[\"text\"], \"score\": score, \"metadata\": entry[\"metadata\"]})\n        scored.sort(key=lambda x: x[\"score\"], reverse=True)\n        return scored[:top_k]\n\n    def __len__(self):\n        return len(self._store)\n\n    @staticmethod\n    def _cosine(a, b):\n        dot = sum(x * y for x, y in zip(a, b))\n        norm_a = math.sqrt(sum(x * x for x in a))\n        norm_b = math.sqrt(sum(y * y for y in b))\n        if norm_a == 0.0 or norm_b == 0.0:\n            return 0.0\n        return dot / (norm_a * norm_b)\n", "sample_values": {"nama_kelas": "SimpleVectorStore", "top_k_default": 3}, "_domain": "prompt_eng", "_category": "Embeddings & Semantic Search", "_category_key": "embeddings"}, {"id": "llm_exception_hierarchy", "title": "Hierarki exception khusus untuk LLM API", "description": "Definisikan kelas exception bertingkat untuk membedakan jenis kegagalan LLM: rate limit, timeout, respons tidak valid, dan autentikasi gagal. Memudahkan penanganan error yang spesifik di kode pemanggil.", "imports": [], "fields": [{"name": "prefix_nama", "label": "Prefix nama kelas exception", "type": "identifier", "default": "LLM"}], "code": "class {{prefix_nama}}Error(Exception):\n    \"\"\"Base exception untuk semua error LLM API.\"\"\"\n\n\nclass {{prefix_nama}}RateLimitError({{prefix_nama}}Error):\n    \"\"\"Dipicu saat API mengembalikan status 429 (rate limit tercapai).\"\"\"\n\n\nclass {{prefix_nama}}TimeoutError({{prefix_nama}}Error):\n    \"\"\"Dipicu saat koneksi atau baca respons melebihi batas waktu.\"\"\"\n\n\nclass {{prefix_nama}}InvalidResponseError({{prefix_nama}}Error):\n    \"\"\"Dipicu saat respons API tidak bisa diparsing atau strukturnya tidak sesuai.\"\"\"\n\n\nclass {{prefix_nama}}AuthError({{prefix_nama}}Error):\n    \"\"\"Dipicu saat API key tidak valid atau tidak punya izin (401/403).\"\"\"\n\n\ndef classify_http_error(status_code, message=\"\"):\n    \"\"\"Ubah kode status HTTP menjadi exception hierarki yang tepat.\"\"\"\n    if status_code == 429:\n        raise {{prefix_nama}}RateLimitError(f\"Rate limit: {message}\")\n    if status_code in (401, 403):\n        raise {{prefix_nama}}AuthError(f\"Auth gagal ({status_code}): {message}\")\n    if status_code >= 400:\n        raise {{prefix_nama}}Error(f\"HTTP {status_code}: {message}\")\n", "sample_values": {"prefix_nama": "LLM"}, "_domain": "prompt_eng", "_category": "Error Handling & Resilience", "_category_key": "error_handling"}, {"id": "circuit_breaker", "title": "Circuit breaker untuk panggilan API LLM", "description": "Implementasi pola circuit breaker: setelah N kegagalan berturut-turut, hentikan sementara semua panggilan selama jeda tertentu sebelum mencoba lagi. Mencegah banjir request ke API yang sedang bermasalah.", "imports": ["time"], "fields": [{"name": "nama_kelas", "label": "Nama kelas circuit breaker", "type": "identifier", "default": "CircuitBreaker"}, {"name": "failure_threshold", "label": "Jumlah gagal sebelum circuit terbuka", "type": "int", "default": 5}, {"name": "recovery_timeout", "label": "Jeda pemulihan (detik)", "type": "int", "default": 60}], "code": "class {{nama_kelas}}:\n    \"\"\"Circuit breaker: blokir panggilan sementara setelah {{failure_threshold}} kegagalan berturut-turut.\n    Coba pulih setelah {{recovery_timeout}} detik.\n    \"\"\"\n\n    CLOSED = \"closed\"      # Normal, panggilan diizinkan\n    OPEN = \"open\"          # Gagal terlalu banyak, panggilan diblokir\n    HALF_OPEN = \"half_open\"  # Sedang uji coba pemulihan\n\n    def __init__(self):\n        self.state = self.CLOSED\n        self._failure_count = 0\n        self._last_failure_time = None\n\n    def call(self, func, *args, **kwargs):\n        \"\"\"Jalankan func melalui circuit breaker. Lempar RuntimeError jika circuit terbuka.\"\"\"\n        if self.state == self.OPEN:\n            elapsed = time.time() - self._last_failure_time\n            if elapsed >= {{recovery_timeout}}:\n                self.state = self.HALF_OPEN\n            else:\n                raise RuntimeError(\n                    f\"Circuit terbuka. Coba lagi dalam \"\n                    f\"{{{recovery_timeout}} - elapsed:.0f} detik.\"\n                )\n        try:\n            result = func(*args, **kwargs)\n            self._on_success()\n            return result\n        except Exception as exc:\n            self._on_failure()\n            raise exc\n\n    def _on_success(self):\n        self._failure_count = 0\n        self.state = self.CLOSED\n\n    def _on_failure(self):\n        self._failure_count += 1\n        self._last_failure_time = time.time()\n        if self._failure_count >= {{failure_threshold}}:\n            self.state = self.OPEN\n", "sample_values": {"nama_kelas": "CircuitBreaker", "failure_threshold": 5, "recovery_timeout": 60}, "_domain": "prompt_eng", "_category": "Error Handling & Resilience", "_category_key": "error_handling"}, {"id": "fallback_chain", "title": "Rantai fallback antar provider LLM", "description": "Coba panggil provider utama; jika gagal, otomatis beralih ke provider cadangan berikutnya dalam urutan. Berguna untuk high-availability tanpa downtime saat satu provider bermasalah.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi fallback chain", "type": "identifier", "default": "call_with_fallback"}], "code": "def {{nama_fungsi}}(providers, *args, **kwargs):\n    \"\"\"Coba tiap callable di providers secara berurutan.\n    providers: list of callable, masing-masing menerima *args, **kwargs.\n    Kembalikan hasil dari provider pertama yang berhasil.\n    Lempar Exception terakhir jika semua gagal.\n    \"\"\"\n    last_error = None\n    for idx, provider_func in enumerate(providers):\n        try:\n            return provider_func(*args, **kwargs)\n        except Exception as exc:\n            last_error = exc\n            provider_name = getattr(provider_func, \"__name__\", f\"provider_{idx}\")\n            print(f\"[fallback] {provider_name} gagal: {exc}. Mencoba berikutnya...\")\n    raise RuntimeError(\n        f\"Semua {len(providers)} provider gagal. Error terakhir: {last_error}\"\n    )\n", "sample_values": {"nama_fungsi": "call_with_fallback"}, "_domain": "prompt_eng", "_category": "Error Handling & Resilience", "_category_key": "error_handling"}, {"id": "rubric_scorer", "title": "Nilai output LLM berdasarkan rubrik kriteria", "description": "Evaluasi teks output LLM terhadap daftar kriteria rubrik yang sudah ditentukan. Setiap kriteria dinilai dengan fungsi penilai terpisah, hasilnya dikumpulkan menjadi skor total dan laporan per kriteria.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi scorer", "type": "identifier", "default": "score_with_rubric"}, {"name": "max_score_per_criterion", "label": "Skor maksimal per kriteria", "type": "int", "default": 10}], "code": "def {{nama_fungsi}}(output_text, rubric):\n    \"\"\"Nilai output_text terhadap rubrik.\n    rubric: list of dict:\n      - 'name': str, nama kriteria\n      - 'scorer': callable(text) -> float (0 hingga {{max_score_per_criterion}})\n      - 'weight': float, bobot relatif (default 1.0)\n    Kembalikan dict {criterion_name: score, ..., 'total': float, 'max_possible': float}.\n    \"\"\"\n    results = {}\n    total_weighted = 0.0\n    total_weight = 0.0\n    for criterion in rubric:\n        name = criterion[\"name\"]\n        scorer_fn = criterion[\"scorer\"]\n        weight = criterion.get(\"weight\", 1.0)\n        try:\n            raw_score = float(scorer_fn(output_text))\n            clamped = max(0.0, min({{max_score_per_criterion}}, raw_score))\n        except Exception as exc:\n            clamped = 0.0\n            results[f\"{name}_error\"] = str(exc)\n        results[name] = clamped\n        total_weighted += clamped * weight\n        total_weight += weight\n    results[\"total\"] = round(total_weighted / total_weight, 4) if total_weight else 0.0\n    results[\"max_possible\"] = {{max_score_per_criterion}}\n    return results\n", "sample_values": {"nama_fungsi": "score_with_rubric", "max_score_per_criterion": 10}, "_domain": "prompt_eng", "_category": "Evaluasi & Penilaian Prompt", "_category_key": "evaluation"}, {"id": "llm_as_judge", "title": "Gunakan LLM sebagai juri untuk menilai output", "description": "Kirim output yang ingin dinilai ke LLM lain (atau model yang sama) dengan prompt evaluasi terstruktur. LLM juri mengembalikan skor numerik dan alasan penilaian dalam format JSON.", "imports": ["json", "re"], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "llm_judge"}, {"name": "score_key", "label": "Key skor di respons JSON juri", "type": "text", "default": "score"}, {"name": "reason_key", "label": "Key alasan di respons JSON juri", "type": "text", "default": "reason"}], "code": "def {{nama_fungsi}}(judge_caller_func, original_prompt, candidate_output, criteria_description):\n    \"\"\"Minta LLM menilai candidate_output berdasarkan criteria_description.\n    judge_caller_func: callable(prompt_text) -> response_text.\n    Kembalikan dict {'{{score_key}}': float, '{{reason_key}}': str}.\n    \"\"\"\n    judge_prompt = (\n        f\"Kamu adalah juri evaluasi yang objektif.\\n\"\n        f\"Prompt asli: {original_prompt}\\n\"\n        f\"Output yang dinilai: {candidate_output}\\n\"\n        f\"Kriteria penilaian: {criteria_description}\\n\"\n        f\"Berikan penilaian dalam format JSON: \"\n        f'{{\"{{score_key}}\": <angka 0-10>, \"{{reason_key}}\": \"<alasan singkat>\"}}'\n    )\n    raw = judge_caller_func(judge_prompt)\n    match = re.search(r\"\\{.*\\}\", raw, re.DOTALL)\n    if not match:\n        raise ValueError(f\"Juri tidak mengembalikan JSON valid: {raw[:200]}\")\n    result = json.loads(match.group())\n    return {\n        \"{{score_key}}\": float(result.get(\"{{score_key}}\", 0)),\n        \"{{reason_key}}\": result.get(\"{{reason_key}}\", \"\"),\n    }\n", "sample_values": {"nama_fungsi": "llm_judge", "score_key": "score", "reason_key": "reason"}, "_domain": "prompt_eng", "_category": "Evaluasi & Penilaian Prompt", "_category_key": "evaluation"}, {"id": "comparison_ranker", "title": "Bandingkan dan rangking beberapa output LLM", "description": "Terima beberapa kandidat output untuk prompt yang sama, hitung skor masing-masing menggunakan fungsi evaluasi, dan kembalikan daftar terurut dari yang terbaik ke terburuk beserta selisih skornya.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "rank_outputs"}], "code": "def {{nama_fungsi}}(candidates, eval_func):\n    \"\"\"Bandingkan dan rangking kandidat output.\n    candidates: dict {nama_kandidat: teks_output}.\n    eval_func: callable(teks_output) -> float (skor, lebih tinggi = lebih baik).\n    Kembalikan list of dict {rank, name, output, score, delta_from_best}\n    diurutkan dari skor tertinggi.\n    \"\"\"\n    scored = []\n    for name, output in candidates.items():\n        try:\n            score = float(eval_func(output))\n        except Exception as exc:\n            score = float(\"-inf\")\n            print(f\"[ranker] Gagal menilai '{name}': {exc}\")\n        scored.append({\"name\": name, \"output\": output, \"score\": score})\n    scored.sort(key=lambda x: x[\"score\"], reverse=True)\n    best_score = scored[0][\"score\"] if scored else 0.0\n    ranked = []\n    for rank_idx, item in enumerate(scored, start=1):\n        ranked.append({\n            \"rank\": rank_idx,\n            \"name\": item[\"name\"],\n            \"output\": item[\"output\"],\n            \"score\": item[\"score\"],\n            \"delta_from_best\": round(best_score - item[\"score\"], 4),\n        })\n    return ranked\n", "sample_values": {"nama_fungsi": "rank_outputs"}, "_domain": "prompt_eng", "_category": "Evaluasi & Penilaian Prompt", "_category_key": "evaluation"}, {"id": "prompt_ab_tester", "title": "Uji beberapa varian prompt sekaligus (A/B)", "description": "Jalankan beberapa versi prompt lewat fungsi caller yang sama, kumpulkan hasilnya berdampingan untuk dibandingkan manual.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "run_prompt_ab_test"}], "code": "def {{nama_fungsi}}(caller_func, prompt_variants: dict, **caller_kwargs):\n    \"\"\"prompt_variants: dict {nama_varian: teks_prompt}. Kembalikan dict {nama_varian: hasil}.\"\"\"\n    results = {}\n    for variant_name, prompt_text in prompt_variants.items():\n        try:\n            results[variant_name] = caller_func(prompt_text, **caller_kwargs)\n        except Exception as e:\n            results[variant_name] = f\"ERROR: {e}\"\n    return results\n", "sample_values": {"nama_fungsi": "run_prompt_ab_test"}, "_domain": "prompt_eng", "_category": "Iterasi & Testing", "_category_key": "iteration_testing"}, {"id": "batch_runner", "title": "Jalankan prompt untuk banyak input sekaligus", "description": "Loop satu template prompt terhadap list input, kumpulkan hasil, dan tetap lanjut walau ada satu input yang gagal.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "run_batch"}], "code": "def {{nama_fungsi}}(caller_func, inputs: list, **caller_kwargs):\n    \"\"\"Jalankan caller_func untuk tiap item di inputs. Hasil gagal ditandai None, tidak menghentikan batch.\"\"\"\n    results = []\n    for idx, item in enumerate(inputs):\n        try:\n            output = caller_func(item, **caller_kwargs)\n            results.append({\"index\": idx, \"input\": item, \"output\": output, \"error\": None})\n        except Exception as e:\n            results.append({\"index\": idx, \"input\": item, \"output\": None, \"error\": str(e)})\n    return results\n", "sample_values": {"nama_fungsi": "run_batch"}, "_domain": "prompt_eng", "_category": "Iterasi & Testing", "_category_key": "iteration_testing"}, {"id": "simple_logger", "title": "Simpan histori prompt & respons ke CSV", "description": "Catat setiap pasangan prompt-respons ke file CSV secara append, lengkap timestamp, untuk ditinjau atau dianalisis nanti.", "imports": ["csv", "os", "datetime"], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "log_prompt_response"}], "code": "def {{nama_fungsi}}(log_path, prompt_text, response_text):\n    \"\"\"Append satu baris log (timestamp, prompt, respons) ke file CSV di log_path.\"\"\"\n    file_exists = os.path.exists(log_path)\n    with open(log_path, mode=\"a\", newline=\"\", encoding=\"utf-8\") as f:\n        writer = csv.writer(f)\n        if not file_exists:\n            writer.writerow([\"timestamp\", \"prompt\", \"response\"])\n        writer.writerow([datetime.datetime.now().isoformat(), prompt_text, response_text])\n", "sample_values": {"nama_fungsi": "log_prompt_response"}, "_domain": "prompt_eng", "_category": "Iterasi & Testing", "_category_key": "iteration_testing"}, {"id": "json_extractor", "title": "Ekstrak JSON dari respons LLM", "description": "Ambil objek JSON dari teks respons model (yang kadang dibungkus kalimat lain), lalu validasi key wajib.", "imports": ["json", "re"], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "extract_json"}, {"name": "expected_keys", "label": "Key wajib (pisahkan koma, boleh kosong)", "type": "list", "default": []}], "code": "def {{nama_fungsi}}(response_text):\n    \"\"\"Ambil objek JSON pertama dari response_text lalu validasi key wajib.\"\"\"\n    match = re.search(r\"\\{.*\\}\", response_text, re.DOTALL)\n    if not match:\n        raise ValueError(\"Tidak ditemukan objek JSON dalam respons\")\n    data = json.loads(match.group())\n    required = {{expected_keys}}\n    missing = [k for k in required if k not in data]\n    if missing:\n        raise KeyError(f\"Field wajib hilang: {missing}\")\n    return data\n", "sample_values": {"nama_fungsi": "extract_json", "expected_keys": []}, "_domain": "prompt_eng", "_category": "Output Handling", "_category_key": "output_handling"}, {"id": "output_validator", "title": "Validasi struktur output terhadap skema", "description": "Cek apakah dict hasil parsing punya key dan tipe data yang sesuai skema yang kamu tentukan, sebelum dipakai lebih lanjut.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "validate_output"}], "code": "def {{nama_fungsi}}(data, schema):\n    \"\"\"schema: dict {nama_key: tipe_python}. Kembalikan True jika valid, lempar ValueError jika tidak.\"\"\"\n    if not isinstance(data, dict):\n        raise ValueError(\"Output bukan dict\")\n    for key, expected_type in schema.items():\n        if key not in data:\n            raise ValueError(f\"Key '{key}' tidak ditemukan pada output\")\n        if not isinstance(data[key], expected_type):\n            raise ValueError(\n                f\"Key '{key}' harus bertipe {expected_type.__name__}, \"\n                f\"didapat {type(data[key]).__name__}\"\n            )\n    return True\n", "sample_values": {"nama_fungsi": "validate_output"}, "_domain": "prompt_eng", "_category": "Output Handling", "_category_key": "output_handling"}, {"id": "retry_on_invalid_output", "title": "Ulangi prompt jika output tidak valid", "description": "Panggil fungsi caller berkali-kali sampai hasilnya lolos fungsi validasi/parsing, atau menyerah setelah N percobaan.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "call_until_valid"}, {"name": "max_attempts", "label": "Jumlah percobaan maksimal", "type": "int", "default": 3}], "code": "def {{nama_fungsi}}(caller_func, parser_func, *args, **kwargs):\n    \"\"\"Panggil caller_func lalu proses hasilnya lewat parser_func.\n    Ulangi sampai {{max_attempts}}x jika parser_func melempar exception.\"\"\"\n    last_error = None\n    for attempt in range(1, {{max_attempts}} + 1):\n        raw_output = caller_func(*args, **kwargs)\n        try:\n            return parser_func(raw_output)\n        except Exception as e:\n            last_error = e\n    raise ValueError(f\"Gagal mendapat output valid setelah {{max_attempts}} percobaan: {last_error}\")\n", "sample_values": {"nama_fungsi": "call_until_valid", "max_attempts": 3}, "_domain": "prompt_eng", "_category": "Output Handling", "_category_key": "output_handling"}, {"id": "linear_chain_runner", "title": "Jalankan rantai prompt linear (output jadi input berikutnya)", "description": "Susun beberapa langkah prompt secara berurutan: output dari satu langkah otomatis menjadi input langkah berikutnya. Cocok untuk pipeline transformasi teks bertahap (ringkas → terjemah → format).", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi runner", "type": "identifier", "default": "run_linear_chain"}], "code": "def {{nama_fungsi}}(steps, initial_input, caller_func):\n    \"\"\"Jalankan rantai prompt linear.\n    steps: list of callable(input_text) -> prompt_text, atau string template.\n    caller_func: callable(prompt_text) -> response_text.\n    Kembalikan dict {step_index: output} dan output akhir.\n    \"\"\"\n    history = {}\n    current_input = initial_input\n    for idx, step in enumerate(steps):\n        if callable(step):\n            prompt = step(current_input)\n        else:\n            prompt = str(step).replace(\"{input}\", current_input)\n        response = caller_func(prompt)\n        history[idx] = {\"prompt\": prompt, \"response\": response}\n        current_input = response\n    return {\"steps\": history, \"final_output\": current_input}\n", "sample_values": {"nama_fungsi": "run_linear_chain"}, "_domain": "prompt_eng", "_category": "Prompt Chaining & Pipelines", "_category_key": "prompt_chaining"}, {"id": "context_passing_chain", "title": "Rantai prompt dengan konteks bersama (shared context)", "description": "Jalankan beberapa langkah prompt yang semuanya bisa membaca dan menulis ke satu dict konteks bersama. Setiap langkah bisa mengambil hasil langkah sebelumnya dari konteks tanpa harus meneruskan satu per satu.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi runner", "type": "identifier", "default": "run_context_chain"}, {"name": "context_key_output", "label": "Key default untuk menyimpan output tiap langkah", "type": "text", "default": "output"}], "code": "def {{nama_fungsi}}(steps, initial_context, caller_func):\n    \"\"\"Jalankan rantai prompt dengan shared context dict.\n    steps: list of dict dengan key:\n      - 'prompt_fn': callable(context) -> prompt_text\n      - 'output_key': str, key untuk menyimpan hasil di context (default '{{context_key_output}}')\n    initial_context: dict awal yang dibagikan ke semua langkah.\n    caller_func: callable(prompt_text) -> response_text.\n    \"\"\"\n    context = dict(initial_context)\n    for idx, step in enumerate(steps):\n        prompt_fn = step.get(\"prompt_fn\")\n        output_key = step.get(\"output_key\", \"{{context_key_output}}\")\n        if prompt_fn is None:\n            raise ValueError(f\"Step {idx} tidak punya 'prompt_fn'\")\n        prompt = prompt_fn(context)\n        response = caller_func(prompt)\n        context[output_key] = response\n        context[f\"_step_{idx}_prompt\"] = prompt\n    return context\n", "sample_values": {"nama_fungsi": "run_context_chain", "context_key_output": "output"}, "_domain": "prompt_eng", "_category": "Prompt Chaining & Pipelines", "_category_key": "prompt_chaining"}, {"id": "branching_chain", "title": "Rantai prompt bercabang berdasarkan kondisi output", "description": "Setelah satu langkah prompt, evaluasi outputnya dengan fungsi kondisi dan pilih cabang langkah berikutnya secara otomatis. Berguna untuk alur yang berbeda tergantung isi respons LLM.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi runner", "type": "identifier", "default": "run_branching_chain"}], "code": "def {{nama_fungsi}}(initial_prompt, branches, caller_func, max_depth=10):\n    \"\"\"Jalankan rantai prompt bercabang.\n    branches: list of dict:\n      - 'prompt': str atau callable(prev_output) -> str\n      - 'condition': callable(output) -> bool (True = ambil cabang ini)\n      - 'next_branches': list of dict (rekursif) atau None jika terminal\n    Kembalikan list langkah yang diambil beserta outputnya.\n    \"\"\"\n    trace = []\n\n    def _run(prompt_or_fn, branch_list, depth):\n        if depth > max_depth:\n            raise RecursionError(\"Kedalaman rantai melebihi batas max_depth\")\n        if callable(prompt_or_fn):\n            prompt = prompt_or_fn(trace[-1][\"output\"] if trace else \"\")\n        else:\n            prompt = prompt_or_fn\n        output = caller_func(prompt)\n        trace.append({\"depth\": depth, \"prompt\": prompt, \"output\": output})\n        if not branch_list:\n            return\n        for branch in branch_list:\n            condition = branch.get(\"condition\", lambda x: True)\n            if condition(output):\n                _run(branch[\"prompt\"], branch.get(\"next_branches\"), depth + 1)\n                break\n\n    _run(initial_prompt, branches, 0)\n    return trace\n", "sample_values": {"nama_fungsi": "run_branching_chain"}, "_domain": "prompt_eng", "_category": "Prompt Chaining & Pipelines", "_category_key": "prompt_chaining"}, {"id": "prompt_template_filler", "title": "Isi ulang template prompt dari variabel", "description": "Ganti placeholder di dalam teks prompt dengan nilai variabel, dan beri error jelas kalau ada placeholder yang lupa diisi.", "imports": ["string"], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "fill_prompt"}], "code": "def {{nama_fungsi}}(template_text, **variables):\n    \"\"\"Isi placeholder $nama_variabel pada template_text dengan nilai dari variables.\n    Melempar error jelas jika ada placeholder yang belum diisi.\"\"\"\n    tpl = string.Template(template_text)\n    try:\n        return tpl.substitute(**variables)\n    except KeyError as e:\n        raise ValueError(f\"Placeholder belum diisi: {e}\")\n", "sample_values": {"nama_fungsi": "fill_prompt"}, "_domain": "prompt_eng", "_category": "Prompt Construction", "_category_key": "prompt_construction"}, {"id": "few_shot_builder", "title": "Bangun prompt few-shot dari contoh", "description": "Susun blok contoh input-output menjadi satu teks prompt few-shot yang siap ditempel sebelum pertanyaan baru.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "build_few_shot_prompt"}, {"name": "separator", "label": "Pemisah antar contoh", "type": "text", "default": "---"}], "code": "def {{nama_fungsi}}(examples, new_input, input_label=\"Input\", output_label=\"Output\"):\n    \"\"\"examples: list of (input, output) tuple. Kembalikan teks prompt few-shot lengkap.\"\"\"\n    separator = \"{{separator}}\"\n    blocks = []\n    for ex_input, ex_output in examples:\n        blocks.append(f\"{input_label}: {ex_input}\\n{output_label}: {ex_output}\")\n    body = f\"\\n{separator}\\n\".join(blocks)\n    return f\"{body}\\n{separator}\\n{input_label}: {new_input}\\n{output_label}:\"\n", "sample_values": {"nama_fungsi": "build_few_shot_prompt", "separator": "---"}, "_domain": "prompt_eng", "_category": "Prompt Construction", "_category_key": "prompt_construction"}, {"id": "message_composer", "title": "Susun pesan role-based (system/user/assistant)", "description": "Bangun list dict pesan bergaya chat API (system, user, assistant) dari potongan teks, siap dikirim ke endpoint chat completion.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "compose_messages"}], "code": "def {{nama_fungsi}}(system_prompt=None, history=None, user_message=None):\n    \"\"\"Bangun list pesan role-based. history: list of (role, content) opsional.\"\"\"\n    messages = []\n    if system_prompt:\n        messages.append({\"role\": \"system\", \"content\": system_prompt})\n    if history:\n        for role, content in history:\n            messages.append({\"role\": role, \"content\": content})\n    if user_message:\n        messages.append({\"role\": \"user\", \"content\": user_message})\n    return messages\n", "sample_values": {"nama_fungsi": "compose_messages"}, "_domain": "prompt_eng", "_category": "Prompt Construction", "_category_key": "prompt_construction"}, {"id": "sse_stream_reader", "title": "Baca streaming SSE dari API LLM (Server-Sent Events)", "description": "Buka koneksi HTTP streaming ke endpoint LLM yang mendukung SSE, baca chunk demi chunk, dan yield teks token secara real-time tanpa menunggu respons penuh selesai.", "imports": ["json", "urllib.request"], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi generator", "type": "identifier", "default": "stream_sse_response"}, {"name": "done_sentinel", "label": "Sentinel penanda akhir stream", "type": "text", "default": "[DONE]"}, {"name": "data_key", "label": "Key teks di dalam objek JSON tiap chunk", "type": "text", "default": "content"}], "code": "def {{nama_fungsi}}(endpoint_url, api_key, payload, timeout=60):\n    \"\"\"Generator: yield token teks satu per satu dari stream SSE LLM API.\n    payload harus sudah menyertakan 'stream': True.\n    \"\"\"\n    body = json.dumps(payload).encode(\"utf-8\")\n    req = urllib.request.Request(\n        endpoint_url,\n        data=body,\n        headers={\n            \"Content-Type\": \"application/json\",\n            \"Authorization\": f\"Bearer {api_key}\",\n            \"Accept\": \"text/event-stream\",\n        },\n        method=\"POST\",\n    )\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        for raw_line in resp:\n            line = raw_line.decode(\"utf-8\").strip()\n            if not line.startswith(\"data:\"):\n                continue\n            data_str = line[len(\"data:\"):].strip()\n            if data_str == \"{{done_sentinel}}\":\n                return\n            try:\n                chunk = json.loads(data_str)\n                token = chunk.get(\"{{data_key}}\", \"\")\n                if token:\n                    yield token\n            except json.JSONDecodeError:\n                continue\n", "sample_values": {"nama_fungsi": "stream_sse_response", "done_sentinel": "[DONE]", "data_key": "content"}, "_domain": "prompt_eng", "_category": "Streaming & Real-Time Responses", "_category_key": "streaming_responses"}, {"id": "stream_collector", "title": "Kumpulkan semua chunk stream menjadi teks utuh", "description": "Konsumsi generator streaming dan gabungkan semua token menjadi satu string lengkap, dengan opsi callback per-token untuk update UI real-time.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "collect_stream"}], "code": "def {{nama_fungsi}}(stream_generator, on_token=None):\n    \"\"\"Kumpulkan semua token dari stream_generator menjadi string penuh.\n    on_token: callable opsional, dipanggil dengan tiap token (untuk update UI).\n    \"\"\"\n    parts = []\n    for token in stream_generator:\n        parts.append(token)\n        if on_token is not None:\n            on_token(token)\n    return \"\".join(parts)\n", "sample_values": {"nama_fungsi": "collect_stream"}, "_domain": "prompt_eng", "_category": "Streaming & Real-Time Responses", "_category_key": "streaming_responses"}, {"id": "chunked_http_reader", "title": "Baca respons HTTP chunked transfer encoding", "description": "Baca respons HTTP dengan Transfer-Encoding: chunked secara manual menggunakan socket, cocok untuk endpoint yang tidak pakai SSE tapi tetap streaming.", "imports": ["json", "urllib.request", "io"], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi generator", "type": "identifier", "default": "read_chunked_response"}, {"name": "chunk_size", "label": "Ukuran buffer baca per iterasi (bytes)", "type": "int", "default": 512}], "code": "def {{nama_fungsi}}(endpoint_url, api_key, payload, timeout=60):\n    \"\"\"Generator: yield potongan teks dari respons HTTP chunked.\n    Cocok untuk endpoint streaming non-SSE.\n    \"\"\"\n    body = json.dumps(payload).encode(\"utf-8\")\n    req = urllib.request.Request(\n        endpoint_url,\n        data=body,\n        headers={\n            \"Content-Type\": \"application/json\",\n            \"Authorization\": f\"Bearer {api_key}\",\n        },\n        method=\"POST\",\n    )\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        buffer = io.BytesIO()\n        while True:\n            chunk = resp.read({{chunk_size}})\n            if not chunk:\n                break\n            buffer.write(chunk)\n            yield chunk.decode(\"utf-8\", errors=\"replace\")\n", "sample_values": {"nama_fungsi": "read_chunked_response", "chunk_size": 512}, "_domain": "prompt_eng", "_category": "Streaming & Real-Time Responses", "_category_key": "streaming_responses"}, {"id": "token_estimator", "title": "Estimasi jumlah token (tanpa library eksternal)", "description": "Perkiraan kasar jumlah token dari teks memakai heuristik karakter, cukup akurat untuk perencanaan awal tanpa perlu install tiktoken.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "estimate_tokens"}, {"name": "chars_per_token", "label": "Perkiraan karakter per token", "type": "int", "default": 4}], "code": "def {{nama_fungsi}}(text: str) -> int:\n    \"\"\"Estimasi kasar jumlah token: panjang karakter dibagi {{chars_per_token}}.\n    Untuk perhitungan presisi, gunakan tokenizer resmi provider model kamu.\"\"\"\n    if not text:\n        return 0\n    return max(1, len(text) // {{chars_per_token}})\n", "sample_values": {"nama_fungsi": "estimate_tokens", "chars_per_token": 4}, "_domain": "prompt_eng", "_category": "Utilitas Pendukung", "_category_key": "utilities"}, {"id": "cost_estimator", "title": "Estimasi biaya dari jumlah token", "description": "Hitung perkiraan biaya panggilan API dari jumlah token input/output dan tarif per 1000 token.", "imports": [], "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "estimate_cost"}], "code": "def {{nama_fungsi}}(input_tokens: int, output_tokens: int, price_per_1k_input: float, price_per_1k_output: float) -> float:\n    \"\"\"Kembalikan estimasi biaya dalam satuan mata uang yang sama dengan tarif yang dimasukkan.\"\"\"\n    input_cost = (input_tokens / 1000) * price_per_1k_input\n    output_cost = (output_tokens / 1000) * price_per_1k_output\n    return round(input_cost + output_cost, 6)\n", "sample_values": {"nama_fungsi": "estimate_cost"}, "_domain": "prompt_eng", "_category": "Utilitas Pendukung", "_category_key": "utilities"}, {"id": "conversation_history_manager", "title": "Kelas pengelola riwayat percakapan", "description": "Simpan, ambil, dan format riwayat chat (role + isi pesan), dengan opsi membatasi jumlah pesan terakhir yang disimpan.", "imports": [], "fields": [{"name": "nama_kelas", "label": "Nama kelas", "type": "identifier", "default": "ConversationHistory"}, {"name": "max_history", "label": "Maksimal pesan disimpan", "type": "int", "default": 20}], "code": "class {{nama_kelas}}:\n    \"\"\"Pengelola riwayat percakapan sederhana, menyimpan maksimal {{max_history}} pesan terakhir.\"\"\"\n\n    def __init__(self):\n        self._history = []\n        self._max_history = {{max_history}}\n\n    def add(self, role: str, content: str):\n        self._history.append({\"role\": role, \"content\": content})\n        if len(self._history) > self._max_history:\n            self._history = self._history[-self._max_history:]\n\n    def get_all(self):\n        return list(self._history)\n\n    def clear(self):\n        self._history = []\n\n    def as_text(self) -> str:\n        return \"\\n\".join(f\"{m['role']}: {m['content']}\" for m in self._history)\n", "sample_values": {"nama_kelas": "ConversationHistory", "max_history": 20}, "_domain": "prompt_eng", "_category": "Utilitas Pendukung", "_category_key": "utilities"}, {"id": "http_get", "title": "HTTP GET — simple GET request dengan urllib", "description": "Kirim GET request ke URL dan kembalikan response body sebagai string. Tanpa dependency eksternal.", "imports": ["urllib.request", "json"], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "http_get"}, {"name": "default_timeout", "label": "Default timeout (detik)", "type": "int", "default": 30}], "code": "def {{nama_fungsi}}(url, headers=None, timeout={{default_timeout}}):\n    \"\"\"GET request ke URL, return response body string.\"\"\"\n    req = urllib.request.Request(url, headers=headers or {})\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        return resp.read().decode(\"utf-8\")\n", "sample_values": {"nama_fungsi": "http_get", "default_timeout": 30}, "_domain": "web", "_category": "HTTP Client (stdlib)", "_category_key": "http_client"}, {"id": "http_post_json", "title": "HTTP POST JSON — kirim JSON payload", "description": "Kirim POST request dengan JSON body menggunakan urllib stdlib.", "imports": ["urllib.request", "json"], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "http_post_json"}, {"name": "default_timeout", "label": "Default timeout (detik)", "type": "int", "default": 30}], "code": "def {{nama_fungsi}}(url, data, headers=None, timeout={{default_timeout}}):\n    \"\"\"POST request dengan JSON body.\"\"\"\n    payload = json.dumps(data).encode(\"utf-8\")\n    req_headers = {\"Content-Type\": \"application/json\"}\n    if headers:\n        req_headers.update(headers)\n    req = urllib.request.Request(url, data=payload, headers=req_headers, method=\"POST\")\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        return json.loads(resp.read().decode(\"utf-8\"))\n", "sample_values": {"nama_fungsi": "http_post_json", "default_timeout": 30}, "_domain": "web", "_category": "HTTP Client (stdlib)", "_category_key": "http_client"}, {"id": "html_link_extractor", "title": "HTML Link Extractor — ekstrak semua <a href> dari HTML", "description": "Parse HTML dan ambil semua link (href) menggunakan html.parser bawaan.", "imports": ["re", "html.parser"], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "extract_links"}], "code": "from html.parser import HTMLParser\n\n\nclass _LinkExtractor(HTMLParser):\n    def __init__(self):\n        super().__init__()\n        self.links = []\n\n    def handle_starttag(self, tag, attrs):\n        if tag == \"a\":\n            for name, value in attrs:\n                if name == \"href\":\n                    self.links.append(value)\n\n\ndef {{nama_fungsi}}(html_text, absolute_only=True):\n    \"\"\"Ekstrak semua URL dari <a href> di HTML.\"\"\"\n    parser = _LinkExtractor()\n    parser.feed(html_text)\n    if absolute_only:\n        return [l for l in parser.links if l.startswith(\"http\")]\n    return parser.links\n", "sample_values": {"nama_fungsi": "extract_links"}, "_domain": "web", "_category": "Web Scraping", "_category_key": "scraping"}, {"id": "simple_downloader", "title": "File Downloader — download file dari URL", "description": "Download file dari URL ke path lokal dengan progress opsional.", "imports": ["urllib.request", "os"], "requires": {}, "fields": [{"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "download_file"}, {"name": "show_progress", "label": "Tampilkan progress?", "type": "bool", "default": false}], "code": "def {{nama_fungsi}}(url, filepath, timeout=60):\n    \"\"\"Download file dari URL ke filepath lokal.\"\"\"\n    os.makedirs(os.path.dirname(filepath), exist_ok=True) if os.path.dirname(filepath) else None\n    req = urllib.request.Request(url, headers={\"User-Agent\": \"PyGen/1.0\"})\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        data = resp.read()\n        with open(filepath, \"wb\") as f:\n            f.write(data)\n{{#show_progress}}\n        print(f\"Downloaded {len(data)} bytes to {filepath}\")\n{{/show_progress}}\n", "sample_values": {"nama_fungsi": "download_file", "show_progress": false}, "_domain": "web", "_category": "Web Scraping", "_category_key": "scraping"}];
+
+// ══════════════════════════════════════════════════════
+// ENGINE (ported from Python)
+// ══════════════════════════════════════════════════════
+const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
+const CONDITIONAL_RE = /\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g;
+const VALID_FIELD_TYPES = new Set(['identifier','text','int','list','choice','bool','multi_line','args','optional']);
+
+function _isTruthy(val) {
+  if (val == null) return false;
+  if (typeof val === 'string') return val.trim() !== '';
+  if (typeof val === 'boolean') return val;
+  if (Array.isArray(val)) return val.length > 0;
+  return true;
+}
+
+function coerceValue(field, rawValue) {
+  const ftype = field.type, name = field.name;
+  switch (ftype) {
+    case 'identifier': {
+      const v = String(rawValue || '').trim();
+      if (!v) throw new Error(`Field '${name}' tidak boleh kosong`);
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(v)) throw new Error(`Field '${name}' harus nama variabel Python valid, dapat: "${v}"`);
+      return v;
+    }
+    case 'text': return String(rawValue ?? '');
+    case 'int': {
+      const n = parseInt(rawValue, 10);
+      if (isNaN(n)) throw new Error(`Field '${name}' harus angka bulat, dapat: "${rawValue}"`);
+      return String(n);
+    }
+    case 'list': {
+      if (Array.isArray(rawValue)) return JSON.stringify(rawValue.map(String));
+      const s = String(rawValue || '').trim();
+      const items = s ? s.split(',').map(x => x.trim()).filter(Boolean) : [];
+      return JSON.stringify(items);
+    }
+    case 'choice': {
+      const opts = field.options || [];
+      const v = String(rawValue || '').trim();
+      if (opts.length > 0 && !opts.includes(v)) throw new Error(`Field '${name}' harus salah satu dari ${JSON.stringify(opts)}, dapat: "${v}"`);
+      return v;
+    }
+    case 'bool': {
+      if (typeof rawValue === 'boolean') return rawValue ? 'True' : 'False';
+      const v = String(rawValue || '').trim().toLowerCase();
+      if (['true','1','yes','y'].includes(v)) return 'True';
+      return 'False';
+    }
+    case 'multi_line': return String(rawValue ?? '');
+    case 'args': return String(rawValue ?? '').trim();
+    case 'optional': return String(rawValue ?? '').trim();
+    default: throw new Error(`Tipe field tidak dikenal: ${ftype}`);
+  }
+}
+
+function render(template, values) {
+  let code = template.code;
+  const resolved = {}, rawResolved = {};
+  for (const field of template.fields) {
+    const name = field.name;
+    let raw = values[name] !== undefined ? values[name] : field.default;
+    if (field.type === 'list' && !Array.isArray(raw) && typeof raw === 'string') {
+      raw = raw || field.default;
+    }
+    rawResolved[name] = raw;
+    resolved[name] = coerceValue(field, raw);
+  }
+
+  // Conditional blocks
+  code = code.replace(CONDITIONAL_RE, (match, key, body) => {
+    if (!_isTruthy(rawResolved[key])) return '';
+    return body.replace(PLACEHOLDER_RE, (m, k) => resolved[k] !== undefined ? resolved[k] : m);
+  });
+
+  // Placeholder substitution
+  code = code.replace(PLACEHOLDER_RE, (match, key) => {
+    if (!(key in resolved)) throw new Error(`Placeholder {{'${key}'}} tidak punya definisi field`);
+    return resolved[key];
+  });
+
+  return code;
+}
+
+function compose(units) {
+  if (!units.length) return '';
+  const allImports = new Set();
+  const allPackages = new Set();
+  for (const u of units) {
+    (u.imports || []).forEach(i => allImports.add(i));
+    const req = u.requires || {};
+    (req.packages || []).forEach(p => allPackages.add(p));
+  }
+
+  const header = `"""\nFile ini dihasilkan otomatis oleh PyGen Web UI.\nDibuat: ${new Date().toISOString().slice(0, 19).replace('T', ' ')}\nJumlah fungsi/komponen: ${units.length}\n\nPyGen adalah generator kode deterministik berbasis template —\nTIDAK ada AI/LLM yang terlibat dalam pembuatan kode ini.\n"""\n`;
+  const reqHeader = allPackages.size ? `# Requirements:\n# pip install ${[...allPackages].sort().join(' ')}\n\n` : '';
+  const importBlock = allImports.size ? [...allImports].sort().map(i => `import ${i}`).join('\n') + '\n\n' : '';
+
+  const blocks = units.map(u => {
+    let info = `# --- ${u.title} (template: ${u.id})\n`;
+    if (u.requires && u.requires.packages && u.requires.packages.length) {
+      info += `#     requires: ${u.requires.packages.join(', ')}\n`;
+    }
+    return info + `\n${u.code.trim()}\n`;
+  });
+
+  return (header + reqHeader + importBlock + blocks.join('\n')).trim() + '\n';
+}
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let state = {
+  currentTemplate: null,
+  units: [], // {id, title, imports, code, requires}
+  mode: 'wizard', // 'wizard' | 'compose'
+  activeDomain: null,
+  renderedCode: '',
+};
+
+// ══════════════════════════════════════════════════════
+// RENDER SIDEBAR
+// ══════════════════════════════════════════════════════
+function buildSidebar(filter = '') {
+  const sidebar = document.getElementById('sidebar');
+  const q = filter.toLowerCase().trim();
+
+  // Filter templates
+  const matchingIds = new Set();
+  if (q) {
+    TEMPLATES.forEach(t => {
+      if (t.id.toLowerCase().includes(q) || t.title.toLowerCase().includes(q) || (t.description||'').toLowerCase().includes(q)) {
+        matchingIds.add(t.id);
+      }
+    });
+  }
+
+  let html = '';
+  for (const dm of DOMAINS) {
+    const domainTmpls = TEMPLATES.filter(t => t._domain === dm.key);
+    if (!domainTmpls.length) continue;
+
+    // Group by category
+    const cats = {};
+    for (const t of domainTmpls) {
+      const ck = t._category_key;
+      if (!cats[ck]) cats[ck] = { label: t._category, items: [] };
+      cats[ck].items.push(t);
+    }
+
+    // Check if any template in this domain matches filter
+    let domainMatch = !q;
+    if (q) {
+      domainMatch = domainTmpls.some(t => matchingIds.has(t.id));
+    }
+    if (q && !domainMatch) continue;
+
+    const isOpen = !q ? (state.activeDomain === dm.key) : true;
+    html += `<div class="domain-group">
+      <div class="domain-header ${isOpen ? 'open' : ''}" data-domain="${dm.key}" onclick="toggleDomain(this)">
+        <span class="arrow">▶</span> ${dm.label} <span style="font-size:.7em;color:var(--text-dim)">(${domainTmpls.length})</span>
+      </div>
+      <div class="domain-items">`;
+
+    for (const [ck, cat] of Object.entries(cats)) {
+      const matchItems = q ? cat.items.filter(t => matchingIds.has(t.id)) : cat.items;
+      if (!matchItems.length) continue;
+      html += `<div class="cat-header">${cat.label}</div>`;
+      for (const t of matchItems) {
+        const active = state.currentTemplate && state.currentTemplate.id === t.id ? ' active' : '';
+        const dmBadge = `<span style="color:var(--accent3);font-size:.7em">[${dm.key}]</span> `;
+        html += `<div class="tpl-item${active}" data-id="${t.id}" onclick="selectTemplate('${t.id}')" title="${t.title}">${q ? dmBadge : ''}${t.title}</div>`;
+      }
+    }
+    html += `</div></div>`;
+  }
+
+  if (!html.trim()) {
+    html = '<div class="empty" style="padding:20px"><p>Tidak ada template yang cocok.</p></div>';
+  }
+
+  sidebar.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════
+// DOMAIN TOGGLE
+// ══════════════════════════════════════════════════════
+function toggleDomain(el) {
+  el.classList.toggle('open');
+  state.activeDomain = el.dataset.domain;
+}
+
+// ══════════════════════════════════════════════════════
+// TEMPLATE SELECTION
+// ══════════════════════════════════════════════════════
+function selectTemplate(id) {
+  const tpl = TEMPLATES.find(t => t.id === id);
+  if (!tpl) return;
+  state.currentTemplate = tpl;
+  state.renderedCode = '';
+  renderWizard(tpl);
+  buildSidebar(document.getElementById('searchInput').value);
+  switchMode('wizard');
+  document.getElementById('wizardBody').scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderWizard(tpl) {
+  // Breadcrumb
+  document.getElementById('breadcrumb').innerHTML = `
+    <span>${DOMAINS.find(d => d.key === tpl._domain)?.label || tpl._domain}</span>
+    <span class="sep">▸</span>
+    <span>${tpl._category}</span>
+    <span class="sep">▸</span>
+    <span class="active">${tpl.title}</span>
+  `;
+  document.getElementById('currentTitle').textContent = tpl.title;
+  document.getElementById('currentDesc').textContent = tpl.description || '';
+
+  // Form
+  let formHtml = '<div class="form-grid">';
+  for (const field of tpl.fields) {
+    const fn = field.name, fl = field.label, ft = field.type;
+    const defVal = field.default !== undefined ? field.default : '';
+    const typeBadge = `<span class="type-badge">${ft}</span>`;
+    const isWide = ['multi_line', 'args', 'optional'].includes(ft);
+
+    let input;
+    if (ft === 'choice') {
+      const opts = field.options || [];
+      input = `<select id="field_${fn}" data-type="${ft}" data-name="${fn}">
+        ${opts.map(o => `<option value="${o}"${o === defVal ? ' selected' : ''}>${o}</option>`).join('')}
+      </select>`;
+    } else if (ft === 'bool') {
+      input = `<select id="field_${fn}" data-type="${ft}" data-name="${fn}">
+        <option value="false"${defVal === false || defVal === 'false' ? ' selected' : ''}>False</option>
+        <option value="true"${defVal === true || defVal === 'true' ? ' selected' : ''}>True</option>
+      </select>`;
+    } else if (ft === 'multi_line') {
+      const dv = Array.isArray(defVal) ? defVal.join('\n') : defVal;
+      input = `<textarea id="field_${fn}" data-type="${ft}" data-name="${fn}" rows="4" placeholder="Masukkan teks...">${dv}</textarea>`;
+    } else if (ft === 'list') {
+      const dv = Array.isArray(defVal) ? defVal.join(', ') : defVal;
+      input = `<input id="field_${fn}" data-type="${ft}" data-name="${fn}" value="${dv}" placeholder="pisahkan dengan koma">`;
+    } else {
+      input = `<input id="field_${fn}" data-type="${ft}" data-name="${fn}" value="${defVal}">`;
+    }
+
+    formHtml += `<div class="form-group${isWide ? ' full' : ''}">
+      <label>${fl}${typeBadge}</label>
+      ${input}
+      <div class="error-msg" id="err_${fn}"></div>
+    </div>`;
+  }
+  formHtml += '</div>';
+
+  // Action buttons
+  formHtml += `
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+      <button class="btn primary" onclick="generateCode()">⚡ Generate</button>
+      <button class="btn" onclick="generateAndAddUnit()">➕ Generate & Tambah ke Compose</button>
+      <button class="btn" onclick="fillDefaults()">↺ Reset ke Default</button>
+    </div>`;
+
+  const wizardBody = document.getElementById('wizardBody');
+  wizardBody.innerHTML = formHtml + `
+    <div class="code-section" id="codeSection" style="display:none">
+      <div class="code-toolbar">
+        <span class="label">✨ Kode Dihasilkan</span>
+        <div class="btns">
+          <button class="btn" onclick="copyCode()">📋 Copy</button>
+          <button class="btn accent" onclick="downloadCode()">💾 Download .py</button>
+          <button class="btn" onclick="clearCode()">✕ Tutup</button>
+        </div>
+      </div>
+      <div class="code-output" id="codeOutput"></div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════
+// CODE GENERATION
+// ══════════════════════════════════════════════════════
+function collectValues() {
+  const tpl = state.currentTemplate;
+  if (!tpl) return null;
+  const values = {};
+  let hasError = false;
+  for (const field of tpl.fields) {
+    const el = document.getElementById('field_' + field.name);
+    if (!el) continue;
+    const raw = el.value;
+    // Clear error
+    el.classList.remove('error');
+    const errEl = document.getElementById('err_' + field.name);
+    if (errEl) errEl.textContent = '';
+
+    try {
+      coerceValue(field, raw);
+    } catch (e) {
+      el.classList.add('error');
+      if (errEl) errEl.textContent = e.message;
+      hasError = true;
+    }
+    values[field.name] = raw;
+  }
+  if (hasError) return null;
+  return values;
+}
+
+function generateCode() {
+  const values = collectValues();
+  if (!values) return;
+
+  const tpl = state.currentTemplate;
+  let code;
+  try {
+    code = render(tpl, values);
+  } catch (e) {
+    showToast('❌ Error: ' + e.message, true);
+    return;
+  }
+
+  state.renderedCode = code;
+  document.getElementById('codeSection').style.display = 'flex';
+  document.getElementById('codeOutput').innerHTML = syntaxHighlight(code);
+  document.getElementById('codeOutput').parentElement.scrollIntoView({ behavior: 'smooth' });
+}
+
+function generateAndAddUnit() {
+  const values = collectValues();
+  if (!values) return;
+
+  const tpl = state.currentTemplate;
+  let code;
+  try {
+    code = render(tpl, values);
+  } catch (e) {
+    showToast('❌ Error: ' + e.message, true);
+    return;
+  }
+
+  state.units.push({
+    id: tpl.id,
+    title: tpl.title,
+    imports: tpl.imports || [],
+    code: code,
+    requires: tpl.requires || {},
+  });
+
+  state.renderedCode = code;
+  document.getElementById('codeSection').style.display = 'flex';
+  document.getElementById('codeOutput').innerHTML = syntaxHighlight(code);
+  updateUnitsUI();
+  showToast('✅ Ditambahkan ke Compose (' + state.units.length + ' fungsi)');
+}
+
+function clearCode() {
+  document.getElementById('codeSection').style.display = 'none';
+  state.renderedCode = '';
+}
+
+// ══════════════════════════════════════════════════════
+// COMPOSE
+// ══════════════════════════════════════════════════════
+function updateUnitsUI() {
+  document.getElementById('unitCount').textContent = state.units.length;
+  const list = document.getElementById('unitsList');
+  if (!state.units.length) {
+    list.innerHTML = '<span style="color:var(--text-dim);font-size:.85em">Belum ada fungsi. Kembali ke tab Wizard dan tambahkan fungsi.</span>';
+  } else {
+    list.innerHTML = state.units.map((u, i) => `
+      <span class="unit-chip">
+        <span style="color:var(--accent2)">#${i+1}</span> ${u.title}
+        <span class="remove" onclick="removeUnit(${i})" title="Hapus">×</span>
+      </span>`).join('');
+  }
+  updateComposePanel();
+}
+
+function removeUnit(idx) {
+  state.units.splice(idx, 1);
+  updateUnitsUI();
+}
+
+function updateComposePanel() {
+  const out = document.getElementById('composeOutput');
+  if (!state.units.length) {
+    out.innerHTML = '<div class="empty"><h3>📦 Belum ada fungsi</h3><p>Klik tab Wizard, pilih template, lalu klik "Generate & Tambah ke Compose" untuk menambahkan fungsi.</p></div>';
+    return;
+  }
+  try {
+    const final = compose(state.units);
+    out.innerHTML = `
+      <div class="code-toolbar">
+        <span class="label">✨ ${state.units.length} fungsi dirangkai (siap diimpor/dijalankan)</span>
+        <div class="btns">
+          <button class="btn" onclick="copyCompose()">📋 Copy</button>
+          <button class="btn accent" onclick="downloadCompose()">💾 Download .py</button>
+          <button class="btn" onclick="state.units=[];updateUnitsUI();">🗑 Clear All</button>
+        </div>
+      </div>
+      <div class="code-output">${syntaxHighlight(final)}</div>`;
+  } catch (e) {
+    out.innerHTML = `<div class="empty"><p style="color:var(--danger)">❌ Error: ${e.message}</p></div>`;
+  }
+}
+
+function switchMode(mode) {
+  state.mode = mode;
+  document.getElementById('wizardPanel').classList.toggle('active', mode === 'wizard');
+  document.getElementById('composePanel').classList.toggle('active', mode === 'compose');
+  document.getElementById('btnWizard').classList.toggle('accent', mode === 'wizard');
+  document.getElementById('btnCompose').classList.toggle('accent', mode === 'compose');
+  if (mode === 'compose') updateComposePanel();
+}
+
+// ══════════════════════════════════════════════════════
+// COPY / DOWNLOAD
+// ══════════════════════════════════════════════════════
+function copyCode() {
+  copyToClipboard(state.renderedCode);
+}
+
+function downloadCode() {
+  const fn = (state.currentTemplate?.id || 'function') + '.py';
+  downloadFile(fn, state.renderedCode);
+}
+
+function copyCompose() {
+  try {
+    copyToClipboard(compose(state.units));
+  } catch(e) { showToast('❌ Error: ' + e.message, true); }
+}
+
+function downloadCompose() {
+  try {
+    downloadFile('generated_functions.py', compose(state.units));
+  } catch(e) { showToast('❌ Error: ' + e.message, true); }
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('📋 Disalin ke clipboard!')).catch(() => showToast('❌ Gagal menyalin', true));
+}
+
+function downloadFile(filename, content) {
+  const blob = new Blob([content], { type: 'text/x-python' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  showToast('💾 Diunduh: ' + filename);
+}
+
+// ══════════════════════════════════════════════════════
+// SYNTAX HIGHLIGHT (simple regex-based)
+// ══════════════════════════════════════════════════════
+function syntaxHighlight(code) {
+  // Escape HTML
+  let esc = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Keywords
+  esc = esc.replace(/\b(def|class|import|from|return|if|else|elif|for|while|try|except|raise|with|as|in|not|and|or|is|None|True|False|yield|pass|break|continue|lambda|async|await|self)\b/g, '<span class="kw">$1</span>');
+  // Strings (triple, single, f-strings)
+  esc = esc.replace(/(f?"""[\s\S]*?""")/g, '<span class="str">$1</span>');
+  esc = esc.replace(/(f?"[^"]*")/g, '<span class="str">$1</span>');
+  esc = esc.replace(/(f?'[^']*')/g, '<span class="str">$1</span>');
+  // Comments
+  esc = esc.replace(/(#.*)/g, '<span class="cmt">$1</span>');
+  // Numbers
+  esc = esc.replace(/\b(\d+\.?\d*)\b/g, '<span class="num">$1</span>');
+  // Function calls
+  esc = esc.replace(/\b([a-zA-Z_]\w*)(?=\()/g, '<span class="fn">$1</span>');
+  return esc;
+}
+
+// ══════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════
+function fillDefaults() {
+  const tpl = state.currentTemplate;
+  if (!tpl) return;
+  for (const field of tpl.fields) {
+    const el = document.getElementById('field_' + field.name);
+    if (!el) continue;
+    const def = field.default;
+    if (field.type === 'list' && Array.isArray(def)) el.value = def.join(', ');
+    else if (field.type === 'bool') el.value = def === true || def === 'true' ? 'true' : 'false';
+    else el.value = def !== undefined ? def : '';
+    el.classList.remove('error');
+    const errEl = document.getElementById('err_' + field.name);
+    if (errEl) errEl.textContent = '';
+  }
+  showToast('↺ Field di-reset ke default');
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? '#f85149' : '#238636';
+  t.style.display = 'block';
+  t.style.animation = 'none';
+  t.offsetHeight;
+  t.style.animation = 'fadeInOut 2.5s forwards';
+  setTimeout(() => t.style.display = 'none', 2500);
+}
+
+function updateStats() {
+  document.getElementById('statsBar').textContent = `${TEMPLATES.length} template | ${DOMAINS.length} domain`;
+}
+
+// ══════════════════════════════════════════════════════
+// SEARCH
+// ══════════════════════════════════════════════════════
+document.getElementById('searchInput').addEventListener('input', function(e) {
+  const q = e.target.value;
+  if (q.length >= 2 || q.length === 0) {
+    buildSidebar(q);
+    if (q && TEMPLATES.length) {
+      const hits = TEMPLATES.filter(t =>
+        t.id.toLowerCase().includes(q.toLowerCase()) ||
+        t.title.toLowerCase().includes(q.toLowerCase())
+      );
+      if (hits.length > 0 && hits.length <= 5 && hits[0].id) {
+        // Don't auto-select, just filter
+      }
+    }
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+function init() {
+  updateStats();
+  buildSidebar();
+  updateUnitsUI();
+
+  // Keyboard shortcut: Ctrl+Enter to generate
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      generateCode();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      document.getElementById('searchInput').focus();
+    }
+  });
+}
+
+init();
+</script>
+</body>
+</html>
