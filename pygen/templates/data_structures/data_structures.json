@@ -1,0 +1,221 @@
+{
+  "category": "data_structures",
+  "label": "Data Structures",
+  "templates": [
+    {
+      "id": "lru_cache_dict",
+      "title": "LRU Cache — dict dengan batas kapasitas",
+      "description": "Dict yang auto-evict entry paling lama tidak dipakai. Pakai OrderedDict.",
+      "imports": [
+        "collections"
+      ],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_class",
+          "label": "Nama class",
+          "type": "identifier",
+          "default": "LRUCache"
+        },
+        {
+          "name": "maxsize",
+          "label": "Max size default",
+          "type": "int",
+          "default": 128
+        }
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"LRU Cache dengan kapasitas tetap.\"\"\"\n    def __init__(self, maxsize={{maxsize}}):\n        from collections import OrderedDict\n        self.maxsize = maxsize\n        self._data = OrderedDict()\n\n    def get(self, key, default=None):\n        if key in self._data:\n            self._data.move_to_end(key)\n            return self._data[key]\n        return default\n\n    def put(self, key, value):\n        if key in self._data:\n            self._data.move_to_end(key)\n        self._data[key] = value\n        if len(self._data) > self.maxsize:\n            self._data.popitem(last=False)\n\n    def __getitem__(self, key):\n        return self.get(key)\n\n    def __setitem__(self, key, value):\n        self.put(key, value)\n\n    def __contains__(self, key):\n        return key in self._data\n\n    def __len__(self):\n        return len(self._data)\n",
+      "sample_values": {
+        "nama_class": "LRUCache",
+        "maxsize": 128
+      }
+    },
+    {
+      "id": "ttl_cache_dict",
+      "title": "TTL Cache — dict dengan expiry per key",
+      "description": "Dict yang entry-nya expire setelah durasi tertentu.",
+      "imports": [
+        "time"
+      ],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_class",
+          "label": "Nama class",
+          "type": "identifier",
+          "default": "TTLCache"
+        },
+        {
+          "name": "ttl",
+          "label": "TTL detik",
+          "type": "int",
+          "default": 60
+        }
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"TTL Cache sederhana.\"\"\"\n    def __init__(self, ttl_seconds={{ttl}}):\n        self.ttl = ttl_seconds\n        self._data = {}\n        self._times = {}\n\n    def _is_expired(self, key):\n        import time\n        return time.time() - self._times.get(key, 0) > self.ttl\n\n    def get(self, key, default=None):\n        import time\n        if key in self._data and not self._is_expired(key):\n            return self._data[key]\n        self._data.pop(key, None)\n        self._times.pop(key, None)\n        return default\n\n    def put(self, key, value):\n        import time\n        self._data[key] = value\n        self._times[key] = time.time()\n\n    def purge(self):\n        for k in list(self._data.keys()):\n            if self._is_expired(k):\n                self._data.pop(k, None)\n                self._times.pop(k, None)\n\n    def __len__(self):\n        self.purge()\n        return len(self._data)\n",
+      "sample_values": {
+        "nama_class": "TTLCache",
+        "ttl": 60
+      }
+    },
+    {
+      "id": "typed_defaultdict",
+      "title": "Typed defaultdict — default value based on type",
+      "description": "defaultdict dengan factory otomatis dari type hint.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_class",
+          "label": "Nama class",
+          "type": "identifier",
+          "default": "TypedDefaultDict"
+        }
+      ],
+      "code": "class {{nama_class}}(dict):\n    \"\"\"Dict dengan default berdasarkan tipe.\"\"\"\n    def __init__(self, default_factory=int):\n        super().__init__()\n        self.default_factory = default_factory\n\n    def __missing__(self, key):\n        value = self.default_factory()\n        self[key] = value\n        return value\n",
+      "sample_values": {
+        "nama_class": "TypedDefaultDict"
+      }
+    },
+    {
+      "id": "ordered_counter",
+      "title": "Ordered Counter — counter yang ingat insertion order",
+      "description": "Kombinasi OrderedDict + Counter.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_class",
+          "label": "Nama class",
+          "type": "identifier",
+          "default": "OrderedCounter"
+        }
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Counter yang preserve insertion order.\"\"\"\n    def __init__(self, iterable=None):\n        from collections import OrderedDict\n        self._data = OrderedDict()\n        if iterable:\n            for item in iterable:\n                self._data[item] = self._data.get(item, 0) + 1\n\n    def inc(self, key, n=1):\n        self._data[key] = self._data.get(key, 0) + n\n\n    def most_common(self, n=None):\n        items = sorted(self._data.items(), key=lambda kv: kv[1], reverse=True)\n        return items[:n] if n else items\n\n    def __getitem__(self, key):\n        return self._data.get(key, 0)\n\n    def items(self):\n        return self._data.items()\n",
+      "sample_values": {
+        "nama_class": "OrderedCounter"
+      }
+    },
+    {
+      "id": "bidict",
+      "title": "Bidirectional dict — key↔value lookup dua arah",
+      "description": "Dict yang bisa lookup dari key maupun value.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_class",
+          "label": "Nama class",
+          "type": "identifier",
+          "default": "BiDict"
+        }
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Bidirectional dict.\"\"\"\n    def __init__(self, initial=None):\n        self.forward = {}\n        self.backward = {}\n        if initial:\n            for k, v in initial.items():\n                self.set(k, v)\n\n    def set(self, key, value):\n        if key in self.forward:\n            old_v = self.forward[key]\n            self.backward.pop(old_v, None)\n        if value in self.backward:\n            old_k = self.backward[value]\n            self.forward.pop(old_k, None)\n        self.forward[key] = value\n        self.backward[value] = key\n\n    def get_key(self, value, default=None):\n        return self.backward.get(value, default)\n\n    def get_value(self, key, default=None):\n        return self.forward.get(key, default)\n\n    def __len__(self):\n        return len(self.forward)\n",
+      "sample_values": {
+        "nama_class": "BiDict"
+      }
+    },
+    {
+      "id": "deep_merge_dict",
+      "title": "Deep merge — gabung nested dict rekursif",
+      "description": "Merge dua dict bersarang tanpa overwrite mentah.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "deep_merge_dict"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(a, b):\n    \"\"\"Deep merge dict b ke a. Return dict baru.\"\"\"\n    import copy\n    result = copy.deepcopy(a)\n    for key, val in b.items():\n        if key in result and isinstance(result[key], dict) and isinstance(val, dict):\n            result[key] = {{nama_fungsi}}(result[key], val)\n        else:\n            result[key] = copy.deepcopy(val)\n    return result\n",
+      "sample_values": {
+        "nama_fungsi": "deep_merge_dict"
+      }
+    },
+    {
+      "id": "dot_access_dict",
+      "title": "DotDict — akses dict dengan dot notation",
+      "description": "d.key.nested bukan d[\"key\"][\"nested\"]",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_class",
+          "label": "Nama class",
+          "type": "identifier",
+          "default": "DotDict"
+        }
+      ],
+      "code": "class {{nama_class}}(dict):\n    \"\"\"Dict dengan akses atribut dot.\"\"\"\n    def __getattr__(self, name):\n        try:\n            value = self[name]\n            if isinstance(value, dict) and not isinstance(value, {{nama_class}}):\n                value = {{nama_class}}(value)\n                self[name] = value\n            return value\n        except KeyError:\n            raise AttributeError(name)\n\n    def __setattr__(self, name, value):\n        self[name] = value\n\n    def __delattr__(self, name):\n        try:\n            del self[name]\n        except KeyError:\n            raise AttributeError(name)\n",
+      "sample_values": {
+        "nama_class": "DotDict"
+      }
+    },
+    {
+      "id": "frozen_dict",
+      "title": "Immutable dict — dict read-only",
+      "description": "Dict yang tidak bisa dimodifikasi setelah dibuat.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_class",
+          "label": "Nama class",
+          "type": "identifier",
+          "default": "FrozenDict"
+        }
+      ],
+      "code": "class {{nama_class}}(dict):\n    \"\"\"Immutable dict.\"\"\"\n    def __init__(self, *args, **kwargs):\n        super().__init__(*args, **kwargs)\n        self._hash = None\n\n    def _blocked(self, *args, **kwargs):\n        raise TypeError(\"{{nama_class}} is immutable\")\n\n    __setitem__ = _blocked\n    __delitem__ = _blocked\n    clear = _blocked\n    pop = _blocked\n    popitem = _blocked\n    setdefault = _blocked\n    update = _blocked\n\n    def __hash__(self):\n        if self._hash is None:\n            self._hash = hash(tuple(sorted(self.items())))\n        return self._hash\n",
+      "sample_values": {
+        "nama_class": "FrozenDict"
+      }
+    },
+    {
+      "id": "priority_queue",
+      "title": "Priority Queue wrapper — heapq dengan API bersih",
+      "description": "Wrapper heapq: push, pop, peek, dengan custom comparator.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_class",
+          "label": "Nama class",
+          "type": "identifier",
+          "default": "PriorityQueue"
+        }
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Priority queue berbasis heapq.\"\"\"\n    def __init__(self):\n        import heapq\n        self._heap = []\n        self._counter = 0\n\n    def push(self, item, priority=0):\n        import heapq\n        heapq.heappush(self._heap, (priority, self._counter, item))\n        self._counter += 1\n\n    def pop(self):\n        import heapq\n        if not self._heap:\n            raise IndexError(\"pop from empty queue\")\n        return heapq.heappop(self._heap)[2]\n\n    def peek(self):\n        if not self._heap:\n            return None\n        return self._heap[0][2]\n\n    def __len__(self):\n        return len(self._heap)\n\n    def __bool__(self):\n        return bool(self._heap)\n",
+      "sample_values": {
+        "nama_class": "PriorityQueue"
+      }
+    },
+    {
+      "id": "circular_buffer",
+      "title": "Circular/Ring Buffer — buffer berputar ukuran tetap",
+      "description": "Buffer yang overwrite dari awal saat penuh.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_class",
+          "label": "Nama class",
+          "type": "identifier",
+          "default": "CircularBuffer"
+        },
+        {
+          "name": "capacity",
+          "label": "Kapasitas",
+          "type": "int",
+          "default": 100
+        }
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Ring buffer ukuran tetap.\"\"\"\n    def __init__(self, capacity={{capacity}}):\n        self.capacity = capacity\n        self._buf = [None] * capacity\n        self._start = 0\n        self._size = 0\n\n    def append(self, item):\n        idx = (self._start + self._size) % self.capacity\n        if self._size == self.capacity:\n            self._start = (self._start + 1) % self.capacity\n            idx = (self._start + self._size - 1) % self.capacity\n        else:\n            self._size += 1\n        self._buf[idx] = item\n\n    def get_all(self):\n        return [self._buf[(self._start + i) % self.capacity] for i in range(self._size)]\n\n    def __len__(self):\n        return self._size\n\n    def clear(self):\n        self._start = 0\n        self._size = 0\n",
+      "sample_values": {
+        "nama_class": "CircularBuffer",
+        "capacity": 100
+      }
+    }
+  ]
+}

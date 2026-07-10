@@ -1,0 +1,210 @@
+{
+  "category": "algorithms",
+  "label": "Algorithms",
+  "templates": [
+    {
+      "id": "binary_search",
+      "title": "Binary search — pencarian biner pada sorted list",
+      "description": "Return index atau insertion point.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "binary_search"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(arr, target):\n    \"\"\"Binary search. Return index jika ketemu, else -1.\"\"\"\n    lo, hi = 0, len(arr) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1\n",
+      "sample_values": {
+        "nama_fungsi": "binary_search"
+      }
+    },
+    {
+      "id": "quick_sort",
+      "title": "QuickSort implementation",
+      "description": "Implementasi klasik in-place quicksort.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "quick_sort"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(arr):\n    \"\"\"QuickSort, return list baru sorted.\"\"\"\n    if len(arr) <= 1:\n        return arr[:]\n    pivot = arr[len(arr)//2]\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return {{nama_fungsi}}(left) + middle + {{nama_fungsi}}(right)\n",
+      "sample_values": {
+        "nama_fungsi": "quick_sort"
+      }
+    },
+    {
+      "id": "merge_sorted",
+      "title": "Merge k sorted list",
+      "description": "Gabungkan N buah sorted list jadi satu.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "merge_sorted"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(lists):\n    \"\"\"Merge multiple sorted lists.\"\"\"\n    import heapq\n    heap = []\n    result = []\n    iterators = [iter(lst) for lst in lists]\n    for i, it in enumerate(iterators):\n        try:\n            val = next(it)\n            heapq.heappush(heap, (val, i))\n        except StopIteration:\n            pass\n    while heap:\n        val, i = heapq.heappop(heap)\n        result.append(val)\n        try:\n            nxt = next(iterators[i])\n            heapq.heappush(heap, (nxt, i))\n        except StopIteration:\n            pass\n    return result\n",
+      "sample_values": {
+        "nama_fungsi": "merge_sorted"
+      }
+    },
+    {
+      "id": "levenshtein_distance",
+      "title": "Levenshtein / edit distance",
+      "description": "Jarak edit antar dua string (stdlib only).",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "levenshtein_distance"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(s1, s2):\n    \"\"\"Hitung Levenshtein distance.\"\"\"\n    if len(s1) < len(s2):\n        return {{nama_fungsi}}(s2, s1)\n    previous = list(range(len(s2) + 1))\n    for i, c1 in enumerate(s1, 1):\n        current = [i]\n        for j, c2 in enumerate(s2, 1):\n            ins = previous[j] + 1\n            delete = current[j-1] + 1\n            sub = previous[j-1] + (c1 != c2)\n            current.append(min(ins, delete, sub))\n        previous = current\n    return previous[-1]\n",
+      "sample_values": {
+        "nama_fungsi": "levenshtein_distance"
+      }
+    },
+    {
+      "id": "top_k_frequent",
+      "title": "Top-K frequent elements",
+      "description": "K elemen paling sering muncul dari iterable.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "top_k_frequent"
+        },
+        {
+          "name": "k_default",
+          "label": "K default",
+          "type": "int",
+          "default": 3
+        }
+      ],
+      "code": "def {{nama_fungsi}}(items, k={{k_default}}):\n    \"\"\"Return k elemen paling frequent.\"\"\"\n    from collections import Counter\n    counter = Counter(items)\n    return [item for item, _ in counter.most_common(k)]\n",
+      "sample_values": {
+        "nama_fungsi": "top_k_frequent",
+        "k_default": 3
+      }
+    },
+    {
+      "id": "sliding_window",
+      "title": "Sliding window — max/min/avg window",
+      "description": "Window berjalan di atas list angka.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "sliding_window"
+        },
+        {
+          "name": "window_size",
+          "label": "Window size default",
+          "type": "int",
+          "default": 3
+        }
+      ],
+      "code": "def {{nama_fungsi}}(nums, window_size={{window_size}}):\n    \"\"\"Yield avg untuk setiap sliding window.\"\"\"\n    if window_size <= 0 or window_size > len(nums):\n        return\n    window_sum = sum(nums[:window_size])\n    yield window_sum / window_size\n    for i in range(window_size, len(nums)):\n        window_sum += nums[i] - nums[i - window_size]\n        yield window_sum / window_size\n",
+      "sample_values": {
+        "nama_fungsi": "sliding_window",
+        "window_size": 3
+      }
+    },
+    {
+      "id": "two_sum",
+      "title": "Two Sum / hash-map lookup",
+      "description": "Cari dua elemen yang jumlahnya = target.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "two_sum"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(nums, target):\n    \"\"\"Return indices dua angka yang sum = target, atau None.\"\"\"\n    seen = {}\n    for i, n in enumerate(nums):\n        need = target - n\n        if need in seen:\n            return (seen[need], i)\n        seen[n] = i\n    return None\n",
+      "sample_values": {
+        "nama_fungsi": "two_sum"
+      }
+    },
+    {
+      "id": "knapsack_01",
+      "title": "0/1 Knapsack — DP sederhana",
+      "description": "Dynamic programming knapsack.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "knapsack_01"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(weights, values, capacity):\n    \"\"\"0/1 Knapsack. Return max value.\"\"\"\n    n = len(weights)\n    dp = [0] * (capacity + 1)\n    for i in range(n):\n        w = weights[i]\n        v = values[i]\n        for c in range(capacity, w-1, -1):\n            dp[c] = max(dp[c], dp[c-w] + v)\n    return dp[capacity]\n",
+      "sample_values": {
+        "nama_fungsi": "knapsack_01"
+      }
+    },
+    {
+      "id": "lcs",
+      "title": "Longest Common Subsequence",
+      "description": "LCS dua sequence dengan DP.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "lcs"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(a, b):\n    \"\"\"Return panjang LCS.\"\"\"\n    m, n = len(a), len(b)\n    dp = [[0]*(n+1) for _ in range(m+1)]\n    for i in range(1, m+1):\n        for j in range(1, n+1):\n            if a[i-1] == b[j-1]:\n                dp[i][j] = dp[i-1][j-1] + 1\n            else:\n                dp[i][j] = max(dp[i-1][j], dp[i][j-1])\n    return dp[m][n]\n",
+      "sample_values": {
+        "nama_fungsi": "lcs"
+      }
+    },
+    {
+      "id": "topological_sort",
+      "title": "Topological sort — Kahn's algorithm",
+      "description": "Urutkan DAG secara topologis.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "topological_sort"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(graph):\n    \"\"\"graph: dict node -> list neighbors. Return topo order list.\"\"\"\n    from collections import deque, defaultdict\n    indeg = defaultdict(int)\n    nodes = set(graph.keys())\n    for u in graph:\n        for v in graph[u]:\n            indeg[v] += 1\n            nodes.add(v)\n    q = deque([n for n in nodes if indeg[n] == 0])\n    order = []\n    while q:\n        u = q.popleft()\n        order.append(u)\n        for v in graph.get(u, []):\n            indeg[v] -= 1\n            if indeg[v] == 0:\n                q.append(v)\n    if len(order) != len(nodes):\n        raise ValueError(\"Graph contains cycle\")\n    return order\n",
+      "sample_values": {
+        "nama_fungsi": "topological_sort"
+      }
+    }
+  ]
+}

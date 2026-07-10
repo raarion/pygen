@@ -1,0 +1,222 @@
+{
+  "category": "math_stats",
+  "label": "Math & Stats",
+  "templates": [
+    {
+      "id": "descriptive_stats",
+      "title": "Descriptive statistics — mean, median, mode, stdev",
+      "description": "Satu fungsi, semua statistik deskriptif",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "descriptive_stats"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(data):\n    \"\"\"Return dict mean, median, mode, stdev, min, max.\"\"\"\n    import statistics\n    data = list(data)\n    if not data:\n        return {}\n    result = {}\n    result['count'] = len(data)\n    result['mean'] = statistics.mean(data)\n    result['median'] = statistics.median(data)\n    try:\n        result['mode'] = statistics.mode(data)\n    except statistics.StatisticsError:\n        result['mode'] = None\n    result['stdev'] = statistics.stdev(data) if len(data) > 1 else 0.0\n    result['min'] = min(data)\n    result['max'] = max(data)\n    return result\n",
+      "sample_values": {
+        "nama_fungsi": "descriptive_stats"
+      }
+    },
+    {
+      "id": "percentile",
+      "title": "Percentile calculator",
+      "description": "Hitung P25, P50, P75, P90 dari list",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "percentile"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(data, p):\n    \"\"\"Percentile 0-100.\"\"\"\n    data = sorted(data)\n    if not data:\n        return None\n    k = (len(data)-1) * p / 100.0\n    f = int(k)\n    c = min(f+1, len(data)-1)\n    if f == c:\n        return data[f]\n    d0 = data[f] * (c - k)\n    d1 = data[c] * (k - f)\n    return d0 + d1\n",
+      "sample_values": {
+        "nama_fungsi": "percentile"
+      }
+    },
+    {
+      "id": "normalize",
+      "title": "Normalize — min-max & z-score",
+      "description": "Normalisasi list ke range 0-1",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "normalize"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(data, method='minmax'):\n    \"\"\"method: 'minmax' atau 'zscore'.\"\"\"\n    data = list(data)\n    if not data:\n        return []\n    if method == 'zscore':\n        import statistics\n        mean = statistics.mean(data)\n        stdev = statistics.stdev(data) if len(data) > 1 else 1\n        return [(x - mean) / stdev if stdev else 0 for x in data]\n    else:\n        mn, mx = min(data), max(data)\n        rng = mx - mn or 1\n        return [(x - mn) / rng for x in data]\n",
+      "sample_values": {
+        "nama_fungsi": "normalize"
+      }
+    },
+    {
+      "id": "moving_average",
+      "title": "Moving / rolling average",
+      "description": "SMA dan EMA (exponential)",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "moving_average"
+        },
+        {
+          "name": "window",
+          "label": "Window",
+          "type": "int",
+          "default": 3
+        }
+      ],
+      "code": "def {{nama_fungsi}}(data, window={{window}}, ema=False):\n    \"\"\"Return moving average list.\"\"\"\n    data = list(data)\n    if not data or window <= 0:\n        return []\n    if ema:\n        alpha = 2 / (window + 1)\n        result = []\n        ema_val = data[0]\n        for x in data:\n            ema_val = alpha * x + (1 - alpha) * ema_val\n            result.append(ema_val)\n        return result\n    else:\n        result = []\n        for i in range(len(data) - window + 1):\n            result.append(sum(data[i:i+window]) / window)\n        return result\n",
+      "sample_values": {
+        "nama_fungsi": "moving_average",
+        "window": 3
+      }
+    },
+    {
+      "id": "linear_regression",
+      "title": "Simple linear regression",
+      "description": "y = mx + b dari (x,y) pairs",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "linear_regression"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(x, y):\n    \"\"\"Return {'slope': m, 'intercept': b, 'r2': r2}.\"\"\"\n    n = len(x)\n    if n == 0 or n != len(y):\n        raise ValueError('x and y must match')\n    sx = sum(x); sy = sum(y)\n    sxy = sum(a*b for a, b in zip(x, y))\n    sxx = sum(a*a for a in x)\n    denom = n * sxx - sx * sx\n    if denom == 0:\n        return {'slope': 0, 'intercept': sy/n if n else 0, 'r2': 0}\n    m = (n * sxy - sx * sy) / denom\n    b = (sy - m * sx) / n\n    y_mean = sy / n\n    ss_tot = sum((yi - y_mean)**2 for yi in y)\n    ss_res = sum((yi - (m*xi + b))**2 for xi, yi in zip(x, y))\n    r2 = 1 - ss_res / ss_tot if ss_tot else 0\n    return {'slope': m, 'intercept': b, 'r2': r2}\n",
+      "sample_values": {
+        "nama_fungsi": "linear_regression"
+      }
+    },
+    {
+      "id": "correlation",
+      "title": "Pearson & Spearman correlation",
+      "description": "Hitung korelasi antar dua list",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "correlation"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(x, y):\n    \"\"\"Pearson correlation.\"\"\"\n    n = len(x)\n    if n == 0 or n != len(y):\n        return 0.0\n    import statistics\n    mx = statistics.mean(x); my = statistics.mean(y)\n    num = sum((a - mx) * (b - my) for a, b in zip(x, y))\n    den_x = sum((a - mx) ** 2 for a in x)\n    den_y = sum((b - my) ** 2 for b in y)\n    den = (den_x * den_y) ** 0.5\n    return num / den if den else 0.0\n",
+      "sample_values": {
+        "nama_fungsi": "correlation"
+      }
+    },
+    {
+      "id": "factorial",
+      "title": "Factorial (iterative + recursive)",
+      "description": "n! dengan kedua metode",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "factorial"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(n):\n    \"\"\"Factorial iterative.\"\"\"\n    if n < 0:\n        raise ValueError('n must be >=0')\n    result = 1\n    for i in range(2, n+1):\n        result *= i\n    return result\n",
+      "sample_values": {
+        "nama_fungsi": "factorial"
+      }
+    },
+    {
+      "id": "prime_generator",
+      "title": "Prime number generator — Sieve of Eratosthenes",
+      "description": "Yield bilangan prima sampai N",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "prime_generator"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(limit):\n    \"\"\"Yield primes up to limit.\"\"\"\n    if limit < 2:\n        return\n    sieve = bytearray(b'\\x01') * (limit + 1)\n    sieve[0:2] = b'\\x00\\x00'\n    import math\n    for p in range(2, int(math.isqrt(limit)) + 1):\n        if sieve[p]:\n            step = p\n            start = p*p\n            sieve[start:limit+1:step] = b'\\x00' * ((limit - start)//step + 1)\n    for i in range(2, limit+1):\n        if sieve[i]:\n            yield i\n",
+      "sample_values": {
+        "nama_fungsi": "prime_generator"
+      }
+    },
+    {
+      "id": "gcd_lcm",
+      "title": "GCD & LCM calculator",
+      "description": "FPB dan KPK",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "gcd_lcm"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(a, b):\n    \"\"\"Return {'gcd': gcd, 'lcm': lcm}.\"\"\"\n    import math\n    g = math.gcd(a, b)\n    l = abs(a * b) // g if g else 0\n    return {'gcd': g, 'lcm': l}\n",
+      "sample_values": {
+        "nama_fungsi": "gcd_lcm"
+      }
+    },
+    {
+      "id": "combinatorics",
+      "title": "Combination & permutation generator",
+      "description": "`combinations(n,k)` dan `permutations(n,k)`",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "combinatorics"
+        }
+      ],
+      "code": "def {{nama_fungsi}}_nCk(n, k):\n    \"\"\"n choose k.\"\"\"\n    import math\n    if hasattr(math, 'comb'):\n        return math.comb(n, k)\n    k = min(k, n-k)\n    result = 1\n    for i in range(1, k+1):\n        result = result * (n - k + i) // i\n    return result\n\ndef {{nama_fungsi}}_nPk(n, k):\n    \"\"\"n permute k.\"\"\"\n    import math\n    if hasattr(math, 'perm'):\n        return math.perm(n, k)\n    result = 1\n    for i in range(n, n-k, -1):\n        result *= i\n    return result\n",
+      "sample_values": {
+        "nama_fungsi": "combinatorics"
+      }
+    },
+    {
+      "id": "fibonacci",
+      "title": "Fibonacci sequence generator",
+      "description": "Yield deret Fibonacci sampai N",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "fibonacci"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(n):\n    \"\"\"Yield fibonacci sampai n terms.\"\"\"\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b\n",
+      "sample_values": {
+        "nama_fungsi": "fibonacci"
+      }
+    }
+  ]
+}

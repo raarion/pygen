@@ -1,0 +1,236 @@
+{
+  "category": "string_tools",
+  "label": "String Tools",
+  "templates": [
+    {
+      "id": "slugify",
+      "title": "Slug generator — text ke URL-friendly slug",
+      "description": "\"Halo Dunia!\" → \"halo-dunia\"",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "slugify"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(text):\n    \"\"\"Convert text ke slug.\"\"\"\n    import re\n    import unicodedata\n    text = unicodedata.normalize('NFKD', text)\n    text = text.encode('ascii', 'ignore').decode('ascii')\n    text = re.sub(r'[^\\w\\s-]', '', text.lower())\n    text = re.sub(r'[-\\s]+', '-', text).strip('-_')\n    return text\n",
+      "sample_values": {
+        "nama_fungsi": "slugify"
+      }
+    },
+    {
+      "id": "truncate_text",
+      "title": "Smart text truncation",
+      "description": "Potong teks dengan ellipsis tanpa potong kata.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "truncate_text"
+        },
+        {
+          "name": "max_len",
+          "label": "Max length",
+          "type": "int",
+          "default": 100
+        }
+      ],
+      "code": "def {{nama_fungsi}}(text, max_len={{max_len}}):\n    \"\"\"Truncate tanpa potong kata.\"\"\"\n    if len(text) <= max_len:\n        return text\n    truncated = text[:max_len].rsplit(' ', 1)[0]\n    return truncated + '...'\n",
+      "sample_values": {
+        "nama_fungsi": "truncate_text",
+        "max_len": 100
+      }
+    },
+    {
+      "id": "camel_to_snake",
+      "title": "CamelCase ↔ snake_case converter",
+      "description": "`MyClass` ↔ `my_class`, bidirectional.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "camel_to_snake"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(name):\n    \"\"\"CamelCase to snake_case. Jika sudah snake, convert ke Camel.\"\"\"\n    import re\n    if '_' in name or name.islower():\n        parts = name.split('_')\n        return ''.join(p.capitalize() for p in parts)\n    s1 = re.sub('(.)([A-Z][a-z]+)', r'\\1_\\2', name)\n    return re.sub('([a-z0-9])([A-Z])', r'\\1_\\2', s1).lower()\n",
+      "sample_values": {
+        "nama_fungsi": "camel_to_snake"
+      }
+    },
+    {
+      "id": "remove_accents",
+      "title": "Hapus aksen/diacritics dari teks",
+      "description": "\"café naïve\" → \"cafe naive\"",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "remove_accents"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(text):\n    \"\"\"Strip accents.\"\"\"\n    import unicodedata\n    nfkd = unicodedata.normalize('NFKD', text)\n    return ''.join([c for c in nfkd if not unicodedata.combining(c)])\n",
+      "sample_values": {
+        "nama_fungsi": "remove_accents"
+      }
+    },
+    {
+      "id": "extract_emails",
+      "title": "Email extractor dari teks",
+      "description": "Regex email dari teks bebas.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "extract_emails"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(text):\n    \"\"\"Extract semua email.\"\"\"\n    import re\n    return re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+', text)\n",
+      "sample_values": {
+        "nama_fungsi": "extract_emails"
+      }
+    },
+    {
+      "id": "extract_urls",
+      "title": "URL extractor dari teks",
+      "description": "Ekstrak semua URL dari konten.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "extract_urls"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(text):\n    \"\"\"Extract URLs.\"\"\"\n    import re\n    return re.findall(r'https?://[^\\s\"\\'<>]+', text)\n",
+      "sample_values": {
+        "nama_fungsi": "extract_urls"
+      }
+    },
+    {
+      "id": "extract_hashtags",
+      "title": "Hashtag & mention extractor",
+      "description": "`#python` dan `@user` dari teks.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "extract_hashtags"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(text):\n    \"\"\"Return dict dengan hashtags dan mentions.\"\"\"\n    import re\n    hashtags = re.findall(r'#(\\w+)', text)\n    mentions = re.findall(r'@(\\w+)', text)\n    return {'hashtags': hashtags, 'mentions': mentions}\n",
+      "sample_values": {
+        "nama_fungsi": "extract_hashtags"
+      }
+    },
+    {
+      "id": "word_wrap",
+      "title": "Word wrap — bungkus teks per kolom",
+      "description": "Potong teks panjang ke baris per lebar tertentu.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "word_wrap"
+        },
+        {
+          "name": "width",
+          "label": "Width",
+          "type": "int",
+          "default": 80
+        }
+      ],
+      "code": "def {{nama_fungsi}}(text, width={{width}}):\n    \"\"\"Wrap text.\"\"\"\n    import textwrap\n    return textwrap.fill(text, width=width)\n",
+      "sample_values": {
+        "nama_fungsi": "word_wrap",
+        "width": 80
+      }
+    },
+    {
+      "id": "anonymize_text",
+      "title": "Text anonymizer sederhana",
+      "description": "Ganti email/phone/name dengan placeholder.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "anonymize_text"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(text):\n    \"\"\"Anonymize PII sederhana.\"\"\"\n    import re\n    text = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+', '[EMAIL]', text)\n    text = re.sub(r'\\+?\\d[\\d\\s\\-()]{8,}\\d', '[PHONE]', text)\n    return text\n",
+      "sample_values": {
+        "nama_fungsi": "anonymize_text"
+      }
+    },
+    {
+      "id": "diff_strings",
+      "title": "Simple string diff",
+      "description": "Bandingkan dua string, output unified diff.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "diff_strings"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(a, b):\n    \"\"\"Return unified diff string.\"\"\"\n    import difflib\n    diff = difflib.unified_diff(\n        a.splitlines(keepends=True),\n        b.splitlines(keepends=True),\n        lineterm=''\n    )\n    return ''.join(diff)\n",
+      "sample_values": {
+        "nama_fungsi": "diff_strings"
+      }
+    },
+    {
+      "id": "str_similarity",
+      "title": "String similarity (Jaccard, Sørensen-Dice)",
+      "description": "Hitung kemiripan dua string 0-1.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "str_similarity"
+        },
+        {
+          "name": "n",
+          "label": "N-gram size",
+          "type": "int",
+          "default": 2
+        }
+      ],
+      "code": "def {{nama_fungsi}}(a, b, n={{n}}):\n    \"\"\"Dice coefficient dengan n-grams.\"\"\"\n    def ngrams(s, n):\n        return set(s[i:i+n] for i in range(len(s)-n+1))\n    if not a and not b:\n        return 1.0\n    A = ngrams(a.lower(), n)\n    B = ngrams(b.lower(), n)\n    if not A and not B:\n        return 1.0\n    inter = len(A & B)\n    return 2 * inter / (len(A) + len(B)) if (len(A) + len(B)) else 0.0\n",
+      "sample_values": {
+        "nama_fungsi": "str_similarity",
+        "n": 2
+      }
+    }
+  ]
+}

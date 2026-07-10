@@ -1,0 +1,210 @@
+{
+  "category": "datetime_utils",
+  "label": "DateTime Utils",
+  "templates": [
+    {
+      "id": "parse_date",
+      "title": "Flexible date parser — multi format",
+      "description": "Coba parse \"2024-01-01\", \"01/01/24\", \"1 Jan 2024\"",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "parse_date"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(s):\n    \"\"\"Parse date dari berbagai format.\"\"\"\n    import datetime\n    formats = [\n        '%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y',\n        '%Y/%m/%d', '%d %b %Y', '%d %B %Y', '%b %d, %Y'\n    ]\n    s = s.strip()\n    for fmt in formats:\n        try:\n            return datetime.datetime.strptime(s, fmt).date()\n        except ValueError:\n            continue\n    raise ValueError(f'Tidak bisa parse tanggal: {s}')\n",
+      "sample_values": {
+        "nama_fungsi": "parse_date"
+      }
+    },
+    {
+      "id": "format_duration",
+      "title": "Format duration — detik ke string",
+      "description": "3661 → \"1 jam 1 menit 1 detik\"",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "format_duration"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(seconds):\n    \"\"\"Format detik ke human readable ID.\"\"\"\n    seconds = int(seconds)\n    parts = []\n    h, rem = divmod(seconds, 3600)\n    m, s = divmod(rem, 60)\n    if h: parts.append(f'{h} jam')\n    if m: parts.append(f'{m} menit')\n    if s or not parts: parts.append(f'{s} detik')\n    return ' '.join(parts)\n",
+      "sample_values": {
+        "nama_fungsi": "format_duration"
+      }
+    },
+    {
+      "id": "is_weekend",
+      "title": "Weekend checker",
+      "description": "True jika hari Sabtu/Minggu",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "is_weekend"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(d):\n    \"\"\"d: datetime.date atau datetime.datetime\"\"\"\n    return d.weekday() >= 5\n",
+      "sample_values": {
+        "nama_fungsi": "is_weekend"
+      }
+    },
+    {
+      "id": "business_days_between",
+      "title": "Hitung hari kerja antara dua tanggal",
+      "description": "Skip weekend (opsional: skip holidays)",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "business_days_between"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(start, end):\n    \"\"\"Hitung business days. start/end: date.\"\"\"\n    import datetime\n    if start > end:\n        start, end = end, start\n    days = 0\n    cur = start\n    one_day = datetime.timedelta(days=1)\n    while cur <= end:\n        if cur.weekday() < 5:\n            days += 1\n        cur += one_day\n    return days\n",
+      "sample_values": {
+        "nama_fungsi": "business_days_between"
+      }
+    },
+    {
+      "id": "add_business_days",
+      "title": "Tambah hari kerja ke tanggal",
+      "description": "+5 hari kerja dari hari ini",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "add_business_days"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(start, n):\n    \"\"\"Tambah n business days.\"\"\"\n    import datetime\n    cur = start\n    step = 1 if n >= 0 else -1\n    remaining = abs(n)\n    one_day = datetime.timedelta(days=step)\n    while remaining > 0:\n        cur += one_day\n        if cur.weekday() < 5:\n            remaining -= 1\n    return cur\n",
+      "sample_values": {
+        "nama_fungsi": "add_business_days"
+      }
+    },
+    {
+      "id": "date_range",
+      "title": "Date range generator",
+      "description": "Yield semua tanggal dari A ke B",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "date_range"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(start, end):\n    \"\"\"Yield date dari start ke end inclusive.\"\"\"\n    import datetime\n    cur = start\n    step = datetime.timedelta(days=1)\n    while cur <= end:\n        yield cur\n        cur += step\n",
+      "sample_values": {
+        "nama_fungsi": "date_range"
+      }
+    },
+    {
+      "id": "age_calculator",
+      "title": "Hitung umur dari tanggal lahir",
+      "description": "`age(\"2000-05-15\")` → tahun",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "age_calculator"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(birth_date, today=None):\n    \"\"\"Hitung umur tahun.\"\"\"\n    import datetime\n    if today is None:\n        today = datetime.date.today()\n    years = today.year - birth_date.year\n    if (today.month, today.day) < (birth_date.month, birth_date.day):\n        years -= 1\n    return years\n",
+      "sample_values": {
+        "nama_fungsi": "age_calculator"
+      }
+    },
+    {
+      "id": "timezone_converter",
+      "title": "Timezone converter (stdlib: zoneinfo)",
+      "description": "Convert UTC ↔ local timezone",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "timezone_converter"
+        },
+        {
+          "name": "default_tz",
+          "label": "Default target TZ",
+          "type": "text",
+          "default": "Asia/Jakarta"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(dt_obj, from_tz='UTC', to_tz='{{default_tz}}'):\n    \"\"\"Convert timezone aware datetime.\"\"\"\n    try:\n        from zoneinfo import ZoneInfo\n    except ImportError:\n        from backports.zoneinfo import ZoneInfo  # type: ignore\n    if dt_obj.tzinfo is None:\n        dt_obj = dt_obj.replace(tzinfo=ZoneInfo(from_tz))\n    return dt_obj.astimezone(ZoneInfo(to_tz))\n",
+      "sample_values": {
+        "nama_fungsi": "timezone_converter",
+        "default_tz": "Asia/Jakarta"
+      }
+    },
+    {
+      "id": "iso_week",
+      "title": "ISO week number",
+      "description": "Dapatkan ISO week number dari tanggal",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "iso_week"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(d):\n    \"\"\"Return (iso_year, iso_week, iso_weekday).\"\"\"\n    return d.isocalendar()\n",
+      "sample_values": {
+        "nama_fungsi": "iso_week"
+      }
+    },
+    {
+      "id": "next_occurrence",
+      "title": "Next occurrence — 'setiap Senin 9 pagi'",
+      "description": "Kapan berikutnya hari X jam Y terjadi?",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "next_occurrence"
+        },
+        {
+          "name": "weekday",
+          "label": "Weekday default 0=Senin",
+          "type": "int",
+          "default": 0
+        }
+      ],
+      "code": "def {{nama_fungsi}}(weekday={{weekday}}, hour=9, minute=0, from_dt=None):\n    \"\"\"weekday: 0=Senin ... 6=Minggu. Return datetime berikutnya.\"\"\"\n    import datetime\n    if from_dt is None:\n        from_dt = datetime.datetime.now()\n    days_ahead = (weekday - from_dt.weekday()) % 7\n    target = from_dt.replace(hour=hour, minute=minute, second=0, microsecond=0) + datetime.timedelta(days=days_ahead)\n    if target <= from_dt:\n        target += datetime.timedelta(days=7)\n    return target\n",
+      "sample_values": {
+        "nama_fungsi": "next_occurrence",
+        "weekday": 0
+      }
+    }
+  ]
+}

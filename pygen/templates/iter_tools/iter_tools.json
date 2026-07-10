@@ -1,0 +1,165 @@
+{
+  "category": "iter_tools",
+  "label": "Iterator Tools",
+  "templates": [
+    {
+      "id": "chunked",
+      "title": "Chunked/grouper — pecah iterable per N",
+      "description": "[1,2,3,4,5] size 2 → [[1,2],[3,4],[5]]",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "chunked"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(iterable, size):\n    \"\"\"Yield chunks.\"\"\"\n    it = iter(iterable)\n    while True:\n        chunk = []\n        try:\n            for _ in range(size):\n                chunk.append(next(it))\n        except StopIteration:\n            if chunk:\n                yield chunk\n            break\n        yield chunk\n",
+      "sample_values": {
+        "nama_fungsi": "chunked"
+      }
+    },
+    {
+      "id": "flatten",
+      "title": "Deep flatten — ratakan nested iterable",
+      "description": "[1,[2,[3,4]]] → [1,2,3,4]",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "flatten"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(items):\n    \"\"\"Flatten nested lists/tuples.\"\"\"\n    for x in items:\n        if isinstance(x, (list, tuple)):\n            yield from {{nama_fungsi}}(x)\n        else:\n            yield x\n",
+      "sample_values": {
+        "nama_fungsi": "flatten"
+      }
+    },
+    {
+      "id": "batch_process",
+      "title": "Batch processor with progress",
+      "description": "Proses large iterable per batch",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "batch_process"
+        },
+        {
+          "name": "batch_size",
+          "label": "Batch size",
+          "type": "int",
+          "default": 50
+        }
+      ],
+      "code": "def {{nama_fungsi}}(iterable, batch_size={{batch_size}}, func=lambda x: x):\n    \"\"\"Process iterable in batches.\"\"\"\n    batch = []\n    for item in iterable:\n        batch.append(item)\n        if len(batch) >= batch_size:\n            yield [func(x) for x in batch]\n            batch = []\n    if batch:\n        yield [func(x) for x in batch]\n",
+      "sample_values": {
+        "nama_fungsi": "batch_process",
+        "batch_size": 50
+      }
+    },
+    {
+      "id": "take_until",
+      "title": "Take until condition — yield sampai kondisi true",
+      "description": "Stop yield saat predikat terpenuhi",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "take_until"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(iterable, predicate):\n    \"\"\"Yield sampai predicate(item) True.\"\"\"\n    for item in iterable:\n        if predicate(item):\n            break\n        yield item\n",
+      "sample_values": {
+        "nama_fungsi": "take_until"
+      }
+    },
+    {
+      "id": "interleave",
+      "title": "Interleave — gabung selang-seling",
+      "description": "`interleave([a,b],[1,2])` → `[a,1,b,2]`",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "interleave"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(*iterables):\n    \"\"\"Interleave multiple iterables.\"\"\"\n    from itertools import zip_longest\n    sentinel = object()\n    for group in zip_longest(*iterables, fillvalue=sentinel):\n        for item in group:\n            if item is not sentinel:\n                yield item\n",
+      "sample_values": {
+        "nama_fungsi": "interleave"
+      }
+    },
+    {
+      "id": "unique_everseen",
+      "title": "Unique (seen) — deduplikasi preserve order",
+      "description": "Hapus duplikat tanpa mengubah urutan",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "unique_everseen"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(iterable):\n    \"\"\"Yield unique items preserving order.\"\"\"\n    seen = set()\n    for item in iterable:\n        if item not in seen:\n            seen.add(item)\n            yield item\n",
+      "sample_values": {
+        "nama_fungsi": "unique_everseen"
+      }
+    },
+    {
+      "id": "pairwise",
+      "title": "Pairwise — yield pasangan berurutan",
+      "description": "[1,2,3] → [(1,2),(2,3)]",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "pairwise"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(iterable):\n    \"\"\"Yield (a,b) sliding pairs.\"\"\"\n    it = iter(iterable)\n    try:\n        prev = next(it)\n    except StopIteration:\n        return\n    for cur in it:\n        yield (prev, cur)\n        prev = cur\n",
+      "sample_values": {
+        "nama_fungsi": "pairwise"
+      }
+    },
+    {
+      "id": "nth",
+      "title": "Nth element — ambil elemen ke-N dari iterable",
+      "description": "Tanpa materialisasi seluruh iterable",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "nth"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(iterable, n, default=None):\n    \"\"\"Ambil elemen ke-n (0-indexed).\"\"\"\n    import itertools\n    return next(itertools.islice(iterable, n, None), default)\n",
+      "sample_values": {
+        "nama_fungsi": "nth"
+      }
+    }
+  ]
+}
