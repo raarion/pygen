@@ -1,0 +1,49 @@
+{
+  "category": "embeddings",
+  "label": "Embeddings & Semantic Search",
+  "templates": [
+    {
+      "id": "embedding_fetcher",
+      "title": "Ambil vektor embedding dari API LLM",
+      "description": "Kirim teks ke endpoint embedding API dan kembalikan vektor float sebagai list Python. Mendukung batch teks sekaligus untuk efisiensi.",
+      "imports": ["json", "urllib.request"],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "fetch_embeddings"},
+        {"name": "embedding_key", "label": "Key vektor di respons JSON API", "type": "text", "default": "embedding"}
+      ],
+      "code": "def {{nama_fungsi}}(endpoint_url, api_key, texts, model=\"text-embedding-default\", timeout=30):\n    \"\"\"Ambil embedding untuk satu atau beberapa teks.\n    texts: str atau list of str.\n    Kembalikan list of list[float] (satu vektor per teks).\n    \"\"\"\n    if isinstance(texts, str):\n        texts = [texts]\n    payload = json.dumps({\"model\": model, \"input\": texts}).encode(\"utf-8\")\n    req = urllib.request.Request(\n        endpoint_url,\n        data=payload,\n        headers={\n            \"Content-Type\": \"application/json\",\n            \"Authorization\": f\"Bearer {api_key}\",\n        },\n        method=\"POST\",\n    )\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        data = json.loads(resp.read().decode(\"utf-8\"))\n    items = data.get(\"data\", data)\n    if isinstance(items, list) and items and isinstance(items[0], dict):\n        return [item[\"{{embedding_key}}\"] for item in items]\n    return items\n",
+      "sample_values": {
+        "nama_fungsi": "fetch_embeddings",
+        "embedding_key": "embedding"
+      }
+    },
+    {
+      "id": "cosine_similarity",
+      "title": "Hitung cosine similarity antara dua vektor",
+      "description": "Hitung kemiripan semantik antara dua vektor embedding menggunakan cosine similarity murni Python stdlib, tanpa numpy. Nilai 1.0 = identik, 0.0 = tidak berkaitan, -1.0 = berlawanan.",
+      "imports": ["math"],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "cosine_similarity"}
+      ],
+      "code": "def {{nama_fungsi}}(vec_a, vec_b):\n    \"\"\"Hitung cosine similarity antara dua vektor float.\n    Kembalikan float antara -1.0 dan 1.0.\n    \"\"\"\n    if len(vec_a) != len(vec_b):\n        raise ValueError(\n            f\"Panjang vektor tidak sama: {len(vec_a)} vs {len(vec_b)}\"\n        )\n    dot = sum(a * b for a, b in zip(vec_a, vec_b))\n    norm_a = math.sqrt(sum(a * a for a in vec_a))\n    norm_b = math.sqrt(sum(b * b for b in vec_b))\n    if norm_a == 0.0 or norm_b == 0.0:\n        return 0.0\n    return dot / (norm_a * norm_b)\n",
+      "sample_values": {
+        "nama_fungsi": "cosine_similarity"
+      }
+    },
+    {
+      "id": "simple_vector_store",
+      "title": "Vector store sederhana dengan nearest-neighbor search",
+      "description": "Simpan pasangan (teks, vektor) dalam memori dan cari dokumen paling mirip dengan query embedding menggunakan cosine similarity. Cocok untuk RAG sederhana tanpa database eksternal.",
+      "imports": ["math"],
+      "fields": [
+        {"name": "nama_kelas", "label": "Nama kelas vector store", "type": "identifier", "default": "SimpleVectorStore"},
+        {"name": "top_k_default", "label": "Jumlah hasil teratas default", "type": "int", "default": 3}
+      ],
+      "code": "class {{nama_kelas}}:\n    \"\"\"Vector store in-memory dengan nearest-neighbor search berbasis cosine similarity.\"\"\"\n\n    def __init__(self):\n        self._store = []  # list of {\"text\": str, \"vector\": list[float], \"metadata\": dict}\n\n    def add(self, text, vector, metadata=None):\n        \"\"\"Tambahkan satu dokumen beserta vektornya ke store.\"\"\"\n        self._store.append({\n            \"text\": text,\n            \"vector\": vector,\n            \"metadata\": metadata or {},\n        })\n\n    def search(self, query_vector, top_k={{top_k_default}}):\n        \"\"\"Cari top_k dokumen paling mirip dengan query_vector.\n        Kembalikan list of dict {text, score, metadata} diurutkan dari paling mirip.\n        \"\"\"\n        scored = []\n        for entry in self._store:\n            score = self._cosine(query_vector, entry[\"vector\"])\n            scored.append({\"text\": entry[\"text\"], \"score\": score, \"metadata\": entry[\"metadata\"]})\n        scored.sort(key=lambda x: x[\"score\"], reverse=True)\n        return scored[:top_k]\n\n    def __len__(self):\n        return len(self._store)\n\n    @staticmethod\n    def _cosine(a, b):\n        dot = sum(x * y for x, y in zip(a, b))\n        norm_a = math.sqrt(sum(x * x for x in a))\n        norm_b = math.sqrt(sum(y * y for y in b))\n        if norm_a == 0.0 or norm_b == 0.0:\n            return 0.0\n        return dot / (norm_a * norm_b)\n",
+      "sample_values": {
+        "nama_kelas": "SimpleVectorStore",
+        "top_k_default": 3
+      }
+    }
+  ]
+}

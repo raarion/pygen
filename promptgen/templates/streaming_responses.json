@@ -1,0 +1,51 @@
+{
+  "category": "streaming_responses",
+  "label": "Streaming & Real-Time Responses",
+  "templates": [
+    {
+      "id": "sse_stream_reader",
+      "title": "Baca streaming SSE dari API LLM (Server-Sent Events)",
+      "description": "Buka koneksi HTTP streaming ke endpoint LLM yang mendukung SSE, baca chunk demi chunk, dan yield teks token secara real-time tanpa menunggu respons penuh selesai.",
+      "imports": ["json", "urllib.request"],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi generator", "type": "identifier", "default": "stream_sse_response"},
+        {"name": "done_sentinel", "label": "Sentinel penanda akhir stream", "type": "text", "default": "[DONE]"},
+        {"name": "data_key", "label": "Key teks di dalam objek JSON tiap chunk", "type": "text", "default": "content"}
+      ],
+      "code": "def {{nama_fungsi}}(endpoint_url, api_key, payload, timeout=60):\n    \"\"\"Generator: yield token teks satu per satu dari stream SSE LLM API.\n    payload harus sudah menyertakan 'stream': True.\n    \"\"\"\n    body = json.dumps(payload).encode(\"utf-8\")\n    req = urllib.request.Request(\n        endpoint_url,\n        data=body,\n        headers={\n            \"Content-Type\": \"application/json\",\n            \"Authorization\": f\"Bearer {api_key}\",\n            \"Accept\": \"text/event-stream\",\n        },\n        method=\"POST\",\n    )\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        for raw_line in resp:\n            line = raw_line.decode(\"utf-8\").strip()\n            if not line.startswith(\"data:\"):\n                continue\n            data_str = line[len(\"data:\"):].strip()\n            if data_str == \"{{done_sentinel}}\":\n                return\n            try:\n                chunk = json.loads(data_str)\n                token = chunk.get(\"{{data_key}}\", \"\")\n                if token:\n                    yield token\n            except json.JSONDecodeError:\n                continue\n",
+      "sample_values": {
+        "nama_fungsi": "stream_sse_response",
+        "done_sentinel": "[DONE]",
+        "data_key": "content"
+      }
+    },
+    {
+      "id": "stream_collector",
+      "title": "Kumpulkan semua chunk stream menjadi teks utuh",
+      "description": "Konsumsi generator streaming dan gabungkan semua token menjadi satu string lengkap, dengan opsi callback per-token untuk update UI real-time.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "collect_stream"}
+      ],
+      "code": "def {{nama_fungsi}}(stream_generator, on_token=None):\n    \"\"\"Kumpulkan semua token dari stream_generator menjadi string penuh.\n    on_token: callable opsional, dipanggil dengan tiap token (untuk update UI).\n    \"\"\"\n    parts = []\n    for token in stream_generator:\n        parts.append(token)\n        if on_token is not None:\n            on_token(token)\n    return \"\".join(parts)\n",
+      "sample_values": {
+        "nama_fungsi": "collect_stream"
+      }
+    },
+    {
+      "id": "chunked_http_reader",
+      "title": "Baca respons HTTP chunked transfer encoding",
+      "description": "Baca respons HTTP dengan Transfer-Encoding: chunked secara manual menggunakan socket, cocok untuk endpoint yang tidak pakai SSE tapi tetap streaming.",
+      "imports": ["json", "urllib.request", "io"],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi generator", "type": "identifier", "default": "read_chunked_response"},
+        {"name": "chunk_size", "label": "Ukuran buffer baca per iterasi (bytes)", "type": "int", "default": 512}
+      ],
+      "code": "def {{nama_fungsi}}(endpoint_url, api_key, payload, timeout=60):\n    \"\"\"Generator: yield potongan teks dari respons HTTP chunked.\n    Cocok untuk endpoint streaming non-SSE.\n    \"\"\"\n    body = json.dumps(payload).encode(\"utf-8\")\n    req = urllib.request.Request(\n        endpoint_url,\n        data=body,\n        headers={\n            \"Content-Type\": \"application/json\",\n            \"Authorization\": f\"Bearer {api_key}\",\n        },\n        method=\"POST\",\n    )\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        buffer = io.BytesIO()\n        while True:\n            chunk = resp.read({{chunk_size}})\n            if not chunk:\n                break\n            buffer.write(chunk)\n            yield chunk.decode(\"utf-8\", errors=\"replace\")\n",
+      "sample_values": {
+        "nama_fungsi": "read_chunked_response",
+        "chunk_size": 512
+      }
+    }
+  ]
+}

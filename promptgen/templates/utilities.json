@@ -1,0 +1,41 @@
+{
+  "category": "utilities",
+  "label": "Utilitas Pendukung",
+  "templates": [
+    {
+      "id": "token_estimator",
+      "title": "Estimasi jumlah token (tanpa library eksternal)",
+      "description": "Perkiraan kasar jumlah token dari teks memakai heuristik karakter, cukup akurat untuk perencanaan awal tanpa perlu install tiktoken.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "estimate_tokens"},
+        {"name": "chars_per_token", "label": "Perkiraan karakter per token", "type": "int", "default": 4}
+      ],
+      "code": "def {{nama_fungsi}}(text: str) -> int:\n    \"\"\"Estimasi kasar jumlah token: panjang karakter dibagi {{chars_per_token}}.\n    Untuk perhitungan presisi, gunakan tokenizer resmi provider model kamu.\"\"\"\n    if not text:\n        return 0\n    return max(1, len(text) // {{chars_per_token}})\n",
+      "sample_values": {"nama_fungsi": "estimate_tokens", "chars_per_token": 4}
+    },
+    {
+      "id": "cost_estimator",
+      "title": "Estimasi biaya dari jumlah token",
+      "description": "Hitung perkiraan biaya panggilan API dari jumlah token input/output dan tarif per 1000 token.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "estimate_cost"}
+      ],
+      "code": "def {{nama_fungsi}}(input_tokens: int, output_tokens: int, price_per_1k_input: float, price_per_1k_output: float) -> float:\n    \"\"\"Kembalikan estimasi biaya dalam satuan mata uang yang sama dengan tarif yang dimasukkan.\"\"\"\n    input_cost = (input_tokens / 1000) * price_per_1k_input\n    output_cost = (output_tokens / 1000) * price_per_1k_output\n    return round(input_cost + output_cost, 6)\n",
+      "sample_values": {"nama_fungsi": "estimate_cost"}
+    },
+    {
+      "id": "conversation_history_manager",
+      "title": "Kelas pengelola riwayat percakapan",
+      "description": "Simpan, ambil, dan format riwayat chat (role + isi pesan), dengan opsi membatasi jumlah pesan terakhir yang disimpan.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_kelas", "label": "Nama kelas", "type": "identifier", "default": "ConversationHistory"},
+        {"name": "max_history", "label": "Maksimal pesan disimpan", "type": "int", "default": 20}
+      ],
+      "code": "class {{nama_kelas}}:\n    \"\"\"Pengelola riwayat percakapan sederhana, menyimpan maksimal {{max_history}} pesan terakhir.\"\"\"\n\n    def __init__(self):\n        self._history = []\n        self._max_history = {{max_history}}\n\n    def add(self, role: str, content: str):\n        self._history.append({\"role\": role, \"content\": content})\n        if len(self._history) > self._max_history:\n            self._history = self._history[-self._max_history:]\n\n    def get_all(self):\n        return list(self._history)\n\n    def clear(self):\n        self._history = []\n\n    def as_text(self) -> str:\n        return \"\\n\".join(f\"{m['role']}: {m['content']}\" for m in self._history)\n",
+      "sample_values": {"nama_kelas": "ConversationHistory", "max_history": 20}
+    }
+  ]
+}

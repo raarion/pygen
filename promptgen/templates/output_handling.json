@@ -1,0 +1,41 @@
+{
+  "category": "output_handling",
+  "label": "Output Handling",
+  "templates": [
+    {
+      "id": "json_extractor",
+      "title": "Ekstrak JSON dari respons LLM",
+      "description": "Ambil objek JSON dari teks respons model (yang kadang dibungkus kalimat lain), lalu validasi key wajib.",
+      "imports": ["json", "re"],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "extract_json"},
+        {"name": "expected_keys", "label": "Key wajib (pisahkan koma, boleh kosong)", "type": "list", "default": []}
+      ],
+      "code": "def {{nama_fungsi}}(response_text):\n    \"\"\"Ambil objek JSON pertama dari response_text lalu validasi key wajib.\"\"\"\n    match = re.search(r\"\\{.*\\}\", response_text, re.DOTALL)\n    if not match:\n        raise ValueError(\"Tidak ditemukan objek JSON dalam respons\")\n    data = json.loads(match.group())\n    required = {{expected_keys}}\n    missing = [k for k in required if k not in data]\n    if missing:\n        raise KeyError(f\"Field wajib hilang: {missing}\")\n    return data\n",
+      "sample_values": {"nama_fungsi": "extract_json", "expected_keys": []}
+    },
+    {
+      "id": "output_validator",
+      "title": "Validasi struktur output terhadap skema",
+      "description": "Cek apakah dict hasil parsing punya key dan tipe data yang sesuai skema yang kamu tentukan, sebelum dipakai lebih lanjut.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "validate_output"}
+      ],
+      "code": "def {{nama_fungsi}}(data, schema):\n    \"\"\"schema: dict {nama_key: tipe_python}. Kembalikan True jika valid, lempar ValueError jika tidak.\"\"\"\n    if not isinstance(data, dict):\n        raise ValueError(\"Output bukan dict\")\n    for key, expected_type in schema.items():\n        if key not in data:\n            raise ValueError(f\"Key '{key}' tidak ditemukan pada output\")\n        if not isinstance(data[key], expected_type):\n            raise ValueError(\n                f\"Key '{key}' harus bertipe {expected_type.__name__}, \"\n                f\"didapat {type(data[key]).__name__}\"\n            )\n    return True\n",
+      "sample_values": {"nama_fungsi": "validate_output"}
+    },
+    {
+      "id": "retry_on_invalid_output",
+      "title": "Ulangi prompt jika output tidak valid",
+      "description": "Panggil fungsi caller berkali-kali sampai hasilnya lolos fungsi validasi/parsing, atau menyerah setelah N percobaan.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "call_until_valid"},
+        {"name": "max_attempts", "label": "Jumlah percobaan maksimal", "type": "int", "default": 3}
+      ],
+      "code": "def {{nama_fungsi}}(caller_func, parser_func, *args, **kwargs):\n    \"\"\"Panggil caller_func lalu proses hasilnya lewat parser_func.\n    Ulangi sampai {{max_attempts}}x jika parser_func melempar exception.\"\"\"\n    last_error = None\n    for attempt in range(1, {{max_attempts}} + 1):\n        raw_output = caller_func(*args, **kwargs)\n        try:\n            return parser_func(raw_output)\n        except Exception as e:\n            last_error = e\n    raise ValueError(f\"Gagal mendapat output valid setelah {{max_attempts}} percobaan: {last_error}\")\n",
+      "sample_values": {"nama_fungsi": "call_until_valid", "max_attempts": 3}
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "category": "iteration_testing",
+  "label": "Iterasi & Testing",
+  "templates": [
+    {
+      "id": "prompt_ab_tester",
+      "title": "Uji beberapa varian prompt sekaligus (A/B)",
+      "description": "Jalankan beberapa versi prompt lewat fungsi caller yang sama, kumpulkan hasilnya berdampingan untuk dibandingkan manual.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "run_prompt_ab_test"}
+      ],
+      "code": "def {{nama_fungsi}}(caller_func, prompt_variants: dict, **caller_kwargs):\n    \"\"\"prompt_variants: dict {nama_varian: teks_prompt}. Kembalikan dict {nama_varian: hasil}.\"\"\"\n    results = {}\n    for variant_name, prompt_text in prompt_variants.items():\n        try:\n            results[variant_name] = caller_func(prompt_text, **caller_kwargs)\n        except Exception as e:\n            results[variant_name] = f\"ERROR: {e}\"\n    return results\n",
+      "sample_values": {"nama_fungsi": "run_prompt_ab_test"}
+    },
+    {
+      "id": "batch_runner",
+      "title": "Jalankan prompt untuk banyak input sekaligus",
+      "description": "Loop satu template prompt terhadap list input, kumpulkan hasil, dan tetap lanjut walau ada satu input yang gagal.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "run_batch"}
+      ],
+      "code": "def {{nama_fungsi}}(caller_func, inputs: list, **caller_kwargs):\n    \"\"\"Jalankan caller_func untuk tiap item di inputs. Hasil gagal ditandai None, tidak menghentikan batch.\"\"\"\n    results = []\n    for idx, item in enumerate(inputs):\n        try:\n            output = caller_func(item, **caller_kwargs)\n            results.append({\"index\": idx, \"input\": item, \"output\": output, \"error\": None})\n        except Exception as e:\n            results.append({\"index\": idx, \"input\": item, \"output\": None, \"error\": str(e)})\n    return results\n",
+      "sample_values": {"nama_fungsi": "run_batch"}
+    },
+    {
+      "id": "simple_logger",
+      "title": "Simpan histori prompt & respons ke CSV",
+      "description": "Catat setiap pasangan prompt-respons ke file CSV secara append, lengkap timestamp, untuk ditinjau atau dianalisis nanti.",
+      "imports": ["csv", "os", "datetime"],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "log_prompt_response"}
+      ],
+      "code": "def {{nama_fungsi}}(log_path, prompt_text, response_text):\n    \"\"\"Append satu baris log (timestamp, prompt, respons) ke file CSV di log_path.\"\"\"\n    file_exists = os.path.exists(log_path)\n    with open(log_path, mode=\"a\", newline=\"\", encoding=\"utf-8\") as f:\n        writer = csv.writer(f)\n        if not file_exists:\n            writer.writerow([\"timestamp\", \"prompt\", \"response\"])\n        writer.writerow([datetime.datetime.now().isoformat(), prompt_text, response_text])\n",
+      "sample_values": {"nama_fungsi": "log_prompt_response"}
+    }
+  ]
+}

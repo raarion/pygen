@@ -1,0 +1,6 @@
+# PromptGen Forge murni menggunakan Python standard library — TIDAK ADA
+# dependency runtime wajib. File ini sengaja kosong dari dependency inti.
+#
+# Dependency opsional (hanya untuk development/testing dengan pytest,
+# bukan wajib untuk menjalankan tool-nya):
+pytest>=7.0

@@ -1,0 +1,49 @@
+{
+  "category": "error_handling",
+  "label": "Error Handling & Resilience",
+  "templates": [
+    {
+      "id": "llm_exception_hierarchy",
+      "title": "Hierarki exception khusus untuk LLM API",
+      "description": "Definisikan kelas exception bertingkat untuk membedakan jenis kegagalan LLM: rate limit, timeout, respons tidak valid, dan autentikasi gagal. Memudahkan penanganan error yang spesifik di kode pemanggil.",
+      "imports": [],
+      "fields": [
+        {"name": "prefix_nama", "label": "Prefix nama kelas exception", "type": "identifier", "default": "LLM"}
+      ],
+      "code": "class {{prefix_nama}}Error(Exception):\n    \"\"\"Base exception untuk semua error LLM API.\"\"\"\n\n\nclass {{prefix_nama}}RateLimitError({{prefix_nama}}Error):\n    \"\"\"Dipicu saat API mengembalikan status 429 (rate limit tercapai).\"\"\"\n\n\nclass {{prefix_nama}}TimeoutError({{prefix_nama}}Error):\n    \"\"\"Dipicu saat koneksi atau baca respons melebihi batas waktu.\"\"\"\n\n\nclass {{prefix_nama}}InvalidResponseError({{prefix_nama}}Error):\n    \"\"\"Dipicu saat respons API tidak bisa diparsing atau strukturnya tidak sesuai.\"\"\"\n\n\nclass {{prefix_nama}}AuthError({{prefix_nama}}Error):\n    \"\"\"Dipicu saat API key tidak valid atau tidak punya izin (401/403).\"\"\"\n\n\ndef classify_http_error(status_code, message=\"\"):\n    \"\"\"Ubah kode status HTTP menjadi exception hierarki yang tepat.\"\"\"\n    if status_code == 429:\n        raise {{prefix_nama}}RateLimitError(f\"Rate limit: {message}\")\n    if status_code in (401, 403):\n        raise {{prefix_nama}}AuthError(f\"Auth gagal ({status_code}): {message}\")\n    if status_code >= 400:\n        raise {{prefix_nama}}Error(f\"HTTP {status_code}: {message}\")\n",
+      "sample_values": {
+        "prefix_nama": "LLM"
+      }
+    },
+    {
+      "id": "circuit_breaker",
+      "title": "Circuit breaker untuk panggilan API LLM",
+      "description": "Implementasi pola circuit breaker: setelah N kegagalan berturut-turut, hentikan sementara semua panggilan selama jeda tertentu sebelum mencoba lagi. Mencegah banjir request ke API yang sedang bermasalah.",
+      "imports": ["time"],
+      "fields": [
+        {"name": "nama_kelas", "label": "Nama kelas circuit breaker", "type": "identifier", "default": "CircuitBreaker"},
+        {"name": "failure_threshold", "label": "Jumlah gagal sebelum circuit terbuka", "type": "int", "default": 5},
+        {"name": "recovery_timeout", "label": "Jeda pemulihan (detik)", "type": "int", "default": 60}
+      ],
+      "code": "class {{nama_kelas}}:\n    \"\"\"Circuit breaker: blokir panggilan sementara setelah {{failure_threshold}} kegagalan berturut-turut.\n    Coba pulih setelah {{recovery_timeout}} detik.\n    \"\"\"\n\n    CLOSED = \"closed\"      # Normal, panggilan diizinkan\n    OPEN = \"open\"          # Gagal terlalu banyak, panggilan diblokir\n    HALF_OPEN = \"half_open\"  # Sedang uji coba pemulihan\n\n    def __init__(self):\n        self.state = self.CLOSED\n        self._failure_count = 0\n        self._last_failure_time = None\n\n    def call(self, func, *args, **kwargs):\n        \"\"\"Jalankan func melalui circuit breaker. Lempar RuntimeError jika circuit terbuka.\"\"\"\n        if self.state == self.OPEN:\n            elapsed = time.time() - self._last_failure_time\n            if elapsed >= {{recovery_timeout}}:\n                self.state = self.HALF_OPEN\n            else:\n                raise RuntimeError(\n                    f\"Circuit terbuka. Coba lagi dalam \"\n                    f\"{{{recovery_timeout}} - elapsed:.0f} detik.\"\n                )\n        try:\n            result = func(*args, **kwargs)\n            self._on_success()\n            return result\n        except Exception as exc:\n            self._on_failure()\n            raise exc\n\n    def _on_success(self):\n        self._failure_count = 0\n        self.state = self.CLOSED\n\n    def _on_failure(self):\n        self._failure_count += 1\n        self._last_failure_time = time.time()\n        if self._failure_count >= {{failure_threshold}}:\n            self.state = self.OPEN\n",
+      "sample_values": {
+        "nama_kelas": "CircuitBreaker",
+        "failure_threshold": 5,
+        "recovery_timeout": 60
+      }
+    },
+    {
+      "id": "fallback_chain",
+      "title": "Rantai fallback antar provider LLM",
+      "description": "Coba panggil provider utama; jika gagal, otomatis beralih ke provider cadangan berikutnya dalam urutan. Berguna untuk high-availability tanpa downtime saat satu provider bermasalah.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi fallback chain", "type": "identifier", "default": "call_with_fallback"}
+      ],
+      "code": "def {{nama_fungsi}}(providers, *args, **kwargs):\n    \"\"\"Coba tiap callable di providers secara berurutan.\n    providers: list of callable, masing-masing menerima *args, **kwargs.\n    Kembalikan hasil dari provider pertama yang berhasil.\n    Lempar Exception terakhir jika semua gagal.\n    \"\"\"\n    last_error = None\n    for idx, provider_func in enumerate(providers):\n        try:\n            return provider_func(*args, **kwargs)\n        except Exception as exc:\n            last_error = exc\n            provider_name = getattr(provider_func, \"__name__\", f\"provider_{idx}\")\n            print(f\"[fallback] {provider_name} gagal: {exc}. Mencoba berikutnya...\")\n    raise RuntimeError(\n        f\"Semua {len(providers)} provider gagal. Error terakhir: {last_error}\"\n    )\n",
+      "sample_values": {
+        "nama_fungsi": "call_with_fallback"
+      }
+    }
+  ]
+}

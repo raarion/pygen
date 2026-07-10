@@ -1,0 +1,47 @@
+{
+  "category": "prompt_chaining",
+  "label": "Prompt Chaining & Pipelines",
+  "templates": [
+    {
+      "id": "linear_chain_runner",
+      "title": "Jalankan rantai prompt linear (output jadi input berikutnya)",
+      "description": "Susun beberapa langkah prompt secara berurutan: output dari satu langkah otomatis menjadi input langkah berikutnya. Cocok untuk pipeline transformasi teks bertahap (ringkas → terjemah → format).",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi runner", "type": "identifier", "default": "run_linear_chain"}
+      ],
+      "code": "def {{nama_fungsi}}(steps, initial_input, caller_func):\n    \"\"\"Jalankan rantai prompt linear.\n    steps: list of callable(input_text) -> prompt_text, atau string template.\n    caller_func: callable(prompt_text) -> response_text.\n    Kembalikan dict {step_index: output} dan output akhir.\n    \"\"\"\n    history = {}\n    current_input = initial_input\n    for idx, step in enumerate(steps):\n        if callable(step):\n            prompt = step(current_input)\n        else:\n            prompt = str(step).replace(\"{input}\", current_input)\n        response = caller_func(prompt)\n        history[idx] = {\"prompt\": prompt, \"response\": response}\n        current_input = response\n    return {\"steps\": history, \"final_output\": current_input}\n",
+      "sample_values": {
+        "nama_fungsi": "run_linear_chain"
+      }
+    },
+    {
+      "id": "context_passing_chain",
+      "title": "Rantai prompt dengan konteks bersama (shared context)",
+      "description": "Jalankan beberapa langkah prompt yang semuanya bisa membaca dan menulis ke satu dict konteks bersama. Setiap langkah bisa mengambil hasil langkah sebelumnya dari konteks tanpa harus meneruskan satu per satu.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi runner", "type": "identifier", "default": "run_context_chain"},
+        {"name": "context_key_output", "label": "Key default untuk menyimpan output tiap langkah", "type": "text", "default": "output"}
+      ],
+      "code": "def {{nama_fungsi}}(steps, initial_context, caller_func):\n    \"\"\"Jalankan rantai prompt dengan shared context dict.\n    steps: list of dict dengan key:\n      - 'prompt_fn': callable(context) -> prompt_text\n      - 'output_key': str, key untuk menyimpan hasil di context (default '{{context_key_output}}')\n    initial_context: dict awal yang dibagikan ke semua langkah.\n    caller_func: callable(prompt_text) -> response_text.\n    \"\"\"\n    context = dict(initial_context)\n    for idx, step in enumerate(steps):\n        prompt_fn = step.get(\"prompt_fn\")\n        output_key = step.get(\"output_key\", \"{{context_key_output}}\")\n        if prompt_fn is None:\n            raise ValueError(f\"Step {idx} tidak punya 'prompt_fn'\")\n        prompt = prompt_fn(context)\n        response = caller_func(prompt)\n        context[output_key] = response\n        context[f\"_step_{idx}_prompt\"] = prompt\n    return context\n",
+      "sample_values": {
+        "nama_fungsi": "run_context_chain",
+        "context_key_output": "output"
+      }
+    },
+    {
+      "id": "branching_chain",
+      "title": "Rantai prompt bercabang berdasarkan kondisi output",
+      "description": "Setelah satu langkah prompt, evaluasi outputnya dengan fungsi kondisi dan pilih cabang langkah berikutnya secara otomatis. Berguna untuk alur yang berbeda tergantung isi respons LLM.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi runner", "type": "identifier", "default": "run_branching_chain"}
+      ],
+      "code": "def {{nama_fungsi}}(initial_prompt, branches, caller_func, max_depth=10):\n    \"\"\"Jalankan rantai prompt bercabang.\n    branches: list of dict:\n      - 'prompt': str atau callable(prev_output) -> str\n      - 'condition': callable(output) -> bool (True = ambil cabang ini)\n      - 'next_branches': list of dict (rekursif) atau None jika terminal\n    Kembalikan list langkah yang diambil beserta outputnya.\n    \"\"\"\n    trace = []\n\n    def _run(prompt_or_fn, branch_list, depth):\n        if depth > max_depth:\n            raise RecursionError(\"Kedalaman rantai melebihi batas max_depth\")\n        if callable(prompt_or_fn):\n            prompt = prompt_or_fn(trace[-1][\"output\"] if trace else \"\")\n        else:\n            prompt = prompt_or_fn\n        output = caller_func(prompt)\n        trace.append({\"depth\": depth, \"prompt\": prompt, \"output\": output})\n        if not branch_list:\n            return\n        for branch in branch_list:\n            condition = branch.get(\"condition\", lambda x: True)\n            if condition(output):\n                _run(branch[\"prompt\"], branch.get(\"next_branches\"), depth + 1)\n                break\n\n    _run(initial_prompt, branches, 0)\n    return trace\n",
+      "sample_values": {
+        "nama_fungsi": "run_branching_chain"
+      }
+    }
+  ]
+}

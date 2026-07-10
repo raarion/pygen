@@ -1,0 +1,42 @@
+{
+  "category": "api_connection",
+  "label": "API & Koneksi LLM",
+  "templates": [
+    {
+      "id": "generic_api_caller",
+      "title": "Pemanggil API LLM generik (stdlib, tanpa dependency)",
+      "description": "Kirim prompt ke endpoint REST API model bahasa dan ambil teks responsnya. Pakai urllib bawaan Python, tidak perlu install apapun.",
+      "imports": ["json", "urllib.request"],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "call_llm_api"},
+        {"name": "response_text_key", "label": "Nama key teks jawaban di JSON respons API", "type": "text", "default": "text"}
+      ],
+      "code": "def {{nama_fungsi}}(endpoint_url, api_key, prompt, model=\"default-model\", timeout=30):\n    \"\"\"Kirim prompt ke API LLM dan kembalikan teks jawabannya.\"\"\"\n    payload = json.dumps({\n        \"model\": model,\n        \"prompt\": prompt\n    }).encode(\"utf-8\")\n    req = urllib.request.Request(\n        endpoint_url,\n        data=payload,\n        headers={\n            \"Content-Type\": \"application/json\",\n            \"Authorization\": f\"Bearer {api_key}\"\n        },\n        method=\"POST\"\n    )\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        data = json.loads(resp.read().decode(\"utf-8\"))\n    return data.get(\"{{response_text_key}}\", data)\n",
+      "sample_values": {"nama_fungsi": "call_llm_api", "response_text_key": "text"}
+    },
+    {
+      "id": "retry_handler",
+      "title": "Decorator retry dengan backoff",
+      "description": "Bungkus fungsi pemanggil API supaya otomatis dicoba ulang saat gagal (misal timeout atau rate limit), dengan jeda yang membesar tiap percobaan.",
+      "imports": ["time", "functools"],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama decorator", "type": "identifier", "default": "retry_on_failure"},
+        {"name": "max_attempts", "label": "Jumlah percobaan maksimal", "type": "int", "default": 3},
+        {"name": "base_delay", "label": "Jeda dasar (detik)", "type": "int", "default": 2}
+      ],
+      "code": "def {{nama_fungsi}}(func):\n    \"\"\"Decorator: coba ulang func sampai {{max_attempts}}x jika terjadi exception.\"\"\"\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        last_error = None\n        for attempt in range(1, {{max_attempts}} + 1):\n            try:\n                return func(*args, **kwargs)\n            except Exception as e:\n                last_error = e\n                if attempt < {{max_attempts}}:\n                    time.sleep({{base_delay}} * attempt)\n        raise last_error\n    return wrapper\n",
+      "sample_values": {"nama_fungsi": "retry_on_failure", "max_attempts": 3, "base_delay": 2}
+    },
+    {
+      "id": "multi_provider_switcher",
+      "title": "Pemilih provider LLM (dispatch by name)",
+      "description": "Kelola beberapa fungsi pemanggil provider berbeda (mis. OpenAI, Anthropic, lokal) dan panggil salah satunya berdasarkan nama string, tanpa ubah kode pemanggil utama.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi dispatcher", "type": "identifier", "default": "call_provider"}
+      ],
+      "code": "PROVIDER_REGISTRY = {}\n\ndef register_provider(name):\n    \"\"\"Decorator untuk mendaftarkan fungsi provider baru ke registry.\"\"\"\n    def decorator(func):\n        PROVIDER_REGISTRY[name] = func\n        return func\n    return decorator\n\n\ndef {{nama_fungsi}}(provider_name, *args, **kwargs):\n    \"\"\"Panggil fungsi provider terdaftar berdasarkan nama string.\"\"\"\n    if provider_name not in PROVIDER_REGISTRY:\n        raise ValueError(f\"Provider '{provider_name}' belum terdaftar. Tersedia: {list(PROVIDER_REGISTRY)}\")\n    return PROVIDER_REGISTRY[provider_name](*args, **kwargs)\n",
+      "sample_values": {"nama_fungsi": "call_provider"}
+    }
+  ]
+}

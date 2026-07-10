@@ -1,0 +1,51 @@
+{
+  "category": "evaluation",
+  "label": "Evaluasi & Penilaian Prompt",
+  "templates": [
+    {
+      "id": "rubric_scorer",
+      "title": "Nilai output LLM berdasarkan rubrik kriteria",
+      "description": "Evaluasi teks output LLM terhadap daftar kriteria rubrik yang sudah ditentukan. Setiap kriteria dinilai dengan fungsi penilai terpisah, hasilnya dikumpulkan menjadi skor total dan laporan per kriteria.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi scorer", "type": "identifier", "default": "score_with_rubric"},
+        {"name": "max_score_per_criterion", "label": "Skor maksimal per kriteria", "type": "int", "default": 10}
+      ],
+      "code": "def {{nama_fungsi}}(output_text, rubric):\n    \"\"\"Nilai output_text terhadap rubrik.\n    rubric: list of dict:\n      - 'name': str, nama kriteria\n      - 'scorer': callable(text) -> float (0 hingga {{max_score_per_criterion}})\n      - 'weight': float, bobot relatif (default 1.0)\n    Kembalikan dict {criterion_name: score, ..., 'total': float, 'max_possible': float}.\n    \"\"\"\n    results = {}\n    total_weighted = 0.0\n    total_weight = 0.0\n    for criterion in rubric:\n        name = criterion[\"name\"]\n        scorer_fn = criterion[\"scorer\"]\n        weight = criterion.get(\"weight\", 1.0)\n        try:\n            raw_score = float(scorer_fn(output_text))\n            clamped = max(0.0, min({{max_score_per_criterion}}, raw_score))\n        except Exception as exc:\n            clamped = 0.0\n            results[f\"{name}_error\"] = str(exc)\n        results[name] = clamped\n        total_weighted += clamped * weight\n        total_weight += weight\n    results[\"total\"] = round(total_weighted / total_weight, 4) if total_weight else 0.0\n    results[\"max_possible\"] = {{max_score_per_criterion}}\n    return results\n",
+      "sample_values": {
+        "nama_fungsi": "score_with_rubric",
+        "max_score_per_criterion": 10
+      }
+    },
+    {
+      "id": "llm_as_judge",
+      "title": "Gunakan LLM sebagai juri untuk menilai output",
+      "description": "Kirim output yang ingin dinilai ke LLM lain (atau model yang sama) dengan prompt evaluasi terstruktur. LLM juri mengembalikan skor numerik dan alasan penilaian dalam format JSON.",
+      "imports": ["json", "re"],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "llm_judge"},
+        {"name": "score_key", "label": "Key skor di respons JSON juri", "type": "text", "default": "score"},
+        {"name": "reason_key", "label": "Key alasan di respons JSON juri", "type": "text", "default": "reason"}
+      ],
+      "code": "def {{nama_fungsi}}(judge_caller_func, original_prompt, candidate_output, criteria_description):\n    \"\"\"Minta LLM menilai candidate_output berdasarkan criteria_description.\n    judge_caller_func: callable(prompt_text) -> response_text.\n    Kembalikan dict {'{{score_key}}': float, '{{reason_key}}': str}.\n    \"\"\"\n    judge_prompt = (\n        f\"Kamu adalah juri evaluasi yang objektif.\\n\"\n        f\"Prompt asli: {original_prompt}\\n\"\n        f\"Output yang dinilai: {candidate_output}\\n\"\n        f\"Kriteria penilaian: {criteria_description}\\n\"\n        f\"Berikan penilaian dalam format JSON: \"\n        f'{{\"{{score_key}}\": <angka 0-10>, \"{{reason_key}}\": \"<alasan singkat>\"}}'\n    )\n    raw = judge_caller_func(judge_prompt)\n    match = re.search(r\"\\{.*\\}\", raw, re.DOTALL)\n    if not match:\n        raise ValueError(f\"Juri tidak mengembalikan JSON valid: {raw[:200]}\")\n    result = json.loads(match.group())\n    return {\n        \"{{score_key}}\": float(result.get(\"{{score_key}}\", 0)),\n        \"{{reason_key}}\": result.get(\"{{reason_key}}\", \"\"),\n    }\n",
+      "sample_values": {
+        "nama_fungsi": "llm_judge",
+        "score_key": "score",
+        "reason_key": "reason"
+      }
+    },
+    {
+      "id": "comparison_ranker",
+      "title": "Bandingkan dan rangking beberapa output LLM",
+      "description": "Terima beberapa kandidat output untuk prompt yang sama, hitung skor masing-masing menggunakan fungsi evaluasi, dan kembalikan daftar terurut dari yang terbaik ke terburuk beserta selisih skornya.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "rank_outputs"}
+      ],
+      "code": "def {{nama_fungsi}}(candidates, eval_func):\n    \"\"\"Bandingkan dan rangking kandidat output.\n    candidates: dict {nama_kandidat: teks_output}.\n    eval_func: callable(teks_output) -> float (skor, lebih tinggi = lebih baik).\n    Kembalikan list of dict {rank, name, output, score, delta_from_best}\n    diurutkan dari skor tertinggi.\n    \"\"\"\n    scored = []\n    for name, output in candidates.items():\n        try:\n            score = float(eval_func(output))\n        except Exception as exc:\n            score = float(\"-inf\")\n            print(f\"[ranker] Gagal menilai '{name}': {exc}\")\n        scored.append({\"name\": name, \"output\": output, \"score\": score})\n    scored.sort(key=lambda x: x[\"score\"], reverse=True)\n    best_score = scored[0][\"score\"] if scored else 0.0\n    ranked = []\n    for rank_idx, item in enumerate(scored, start=1):\n        ranked.append({\n            \"rank\": rank_idx,\n            \"name\": item[\"name\"],\n            \"output\": item[\"output\"],\n            \"score\": item[\"score\"],\n            \"delta_from_best\": round(best_score - item[\"score\"], 4),\n        })\n    return ranked\n",
+      "sample_values": {
+        "nama_fungsi": "rank_outputs"
+      }
+    }
+  ]
+}

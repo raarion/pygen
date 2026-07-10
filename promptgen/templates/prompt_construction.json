@@ -1,0 +1,40 @@
+{
+  "category": "prompt_construction",
+  "label": "Prompt Construction",
+  "templates": [
+    {
+      "id": "prompt_template_filler",
+      "title": "Isi ulang template prompt dari variabel",
+      "description": "Ganti placeholder di dalam teks prompt dengan nilai variabel, dan beri error jelas kalau ada placeholder yang lupa diisi.",
+      "imports": ["string"],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "fill_prompt"}
+      ],
+      "code": "def {{nama_fungsi}}(template_text, **variables):\n    \"\"\"Isi placeholder $nama_variabel pada template_text dengan nilai dari variables.\n    Melempar error jelas jika ada placeholder yang belum diisi.\"\"\"\n    tpl = string.Template(template_text)\n    try:\n        return tpl.substitute(**variables)\n    except KeyError as e:\n        raise ValueError(f\"Placeholder belum diisi: {e}\")\n",
+      "sample_values": {"nama_fungsi": "fill_prompt"}
+    },
+    {
+      "id": "few_shot_builder",
+      "title": "Bangun prompt few-shot dari contoh",
+      "description": "Susun blok contoh input-output menjadi satu teks prompt few-shot yang siap ditempel sebelum pertanyaan baru.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "build_few_shot_prompt"},
+        {"name": "separator", "label": "Pemisah antar contoh", "type": "text", "default": "---"}
+      ],
+      "code": "def {{nama_fungsi}}(examples, new_input, input_label=\"Input\", output_label=\"Output\"):\n    \"\"\"examples: list of (input, output) tuple. Kembalikan teks prompt few-shot lengkap.\"\"\"\n    separator = \"{{separator}}\"\n    blocks = []\n    for ex_input, ex_output in examples:\n        blocks.append(f\"{input_label}: {ex_input}\\n{output_label}: {ex_output}\")\n    body = f\"\\n{separator}\\n\".join(blocks)\n    return f\"{body}\\n{separator}\\n{input_label}: {new_input}\\n{output_label}:\"\n",
+      "sample_values": {"nama_fungsi": "build_few_shot_prompt", "separator": "---"}
+    },
+    {
+      "id": "message_composer",
+      "title": "Susun pesan role-based (system/user/assistant)",
+      "description": "Bangun list dict pesan bergaya chat API (system, user, assistant) dari potongan teks, siap dikirim ke endpoint chat completion.",
+      "imports": [],
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "compose_messages"}
+      ],
+      "code": "def {{nama_fungsi}}(system_prompt=None, history=None, user_message=None):\n    \"\"\"Bangun list pesan role-based. history: list of (role, content) opsional.\"\"\"\n    messages = []\n    if system_prompt:\n        messages.append({\"role\": \"system\", \"content\": system_prompt})\n    if history:\n        for role, content in history:\n            messages.append({\"role\": role, \"content\": content})\n    if user_message:\n        messages.append({\"role\": \"user\", \"content\": user_message})\n    return messages\n",
+      "sample_values": {"nama_fungsi": "compose_messages"}
+    }
+  ]
+}
