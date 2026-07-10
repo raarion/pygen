@@ -1,0 +1,33 @@
+{
+  "category": "file_ops",
+  "label": "File Operations",
+  "templates": [
+    {
+      "id": "read_text_file",
+      "title": "Read text file — baca isi file teks",
+      "description": "Baca seluruh isi file teks ke string, dengan encoding opsional.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "read_file"},
+        {"name": "default_encoding", "label": "Default encoding", "type": "choice", "options": ["utf-8", "latin-1", "ascii"], "default": "utf-8"},
+        {"name": "strip", "label": "Strip whitespace di awal/akhir?", "type": "bool", "default": false}
+      ],
+      "code": "def {{nama_fungsi}}(filepath, encoding=\"{{default_encoding}}\"):\n    \"\"\"Baca dan kembalikan seluruh isi file.\"\"\"\n    with open(filepath, \"r\", encoding=encoding) as f:\n        content = f.read()\n    return content.strip() if {{strip}} else content\n",
+      "sample_values": {"nama_fungsi": "read_file", "default_encoding": "utf-8", "strip": false}
+    },
+    {
+      "id": "write_text_file",
+      "title": "Write text file — tulis string ke file",
+      "description": "Tulis (overwrite) string ke file, dengan opsi append.",
+      "imports": ["os"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "write_file"},
+        {"name": "default_encoding", "label": "Default encoding", "type": "choice", "options": ["utf-8", "latin-1", "ascii"], "default": "utf-8"}
+      ],
+      "code": "def {{nama_fungsi}}(filepath, content, encoding=\"{{default_encoding}}\", append=False):\n    \"\"\"Tulis content ke file. append=True untuk menambah di akhir.\"\"\"\n    mode = \"a\" if append else \"w\"\n    os.makedirs(os.path.dirname(filepath), exist_ok=True) if os.path.dirname(filepath) else None\n    with open(filepath, mode, encoding=encoding) as f:\n        f.write(content)\n",
+      "sample_values": {"nama_fungsi": "write_file", "default_encoding": "utf-8"}
+    }
+  ]
+}

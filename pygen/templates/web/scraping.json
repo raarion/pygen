@@ -1,0 +1,31 @@
+{
+  "category": "scraping",
+  "label": "Web Scraping",
+  "templates": [
+    {
+      "id": "html_link_extractor",
+      "title": "HTML Link Extractor — ekstrak semua <a href> dari HTML",
+      "description": "Parse HTML dan ambil semua link (href) menggunakan html.parser bawaan.",
+      "imports": ["re", "html.parser"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "extract_links"}
+      ],
+      "code": "from html.parser import HTMLParser\n\n\nclass _LinkExtractor(HTMLParser):\n    def __init__(self):\n        super().__init__()\n        self.links = []\n\n    def handle_starttag(self, tag, attrs):\n        if tag == \"a\":\n            for name, value in attrs:\n                if name == \"href\":\n                    self.links.append(value)\n\n\ndef {{nama_fungsi}}(html_text, absolute_only=True):\n    \"\"\"Ekstrak semua URL dari <a href> di HTML.\"\"\"\n    parser = _LinkExtractor()\n    parser.feed(html_text)\n    if absolute_only:\n        return [l for l in parser.links if l.startswith(\"http\")]\n    return parser.links\n",
+      "sample_values": {"nama_fungsi": "extract_links"}
+    },
+    {
+      "id": "simple_downloader",
+      "title": "File Downloader — download file dari URL",
+      "description": "Download file dari URL ke path lokal dengan progress opsional.",
+      "imports": ["urllib.request", "os"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "download_file"},
+        {"name": "show_progress", "label": "Tampilkan progress?", "type": "bool", "default": false}
+      ],
+      "code": "def {{nama_fungsi}}(url, filepath, timeout=60):\n    \"\"\"Download file dari URL ke filepath lokal.\"\"\"\n    os.makedirs(os.path.dirname(filepath), exist_ok=True) if os.path.dirname(filepath) else None\n    req = urllib.request.Request(url, headers={\"User-Agent\": \"PyGen/1.0\"})\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        data = resp.read()\n        with open(filepath, \"wb\") as f:\n            f.write(data)\n{{#show_progress}}\n        print(f\"Downloaded {len(data)} bytes to {filepath}\")\n{{/show_progress}}\n",
+      "sample_values": {"nama_fungsi": "download_file", "show_progress": false}
+    }
+  ]
+}

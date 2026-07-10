@@ -1,0 +1,32 @@
+{
+  "category": "csv_tools",
+  "label": "CSV Tools",
+  "templates": [
+    {
+      "id": "csv_reader",
+      "title": "CSV Reader — baca CSV ke list of dict",
+      "description": "Baca file CSV dengan header baris pertama, kembalikan list dictionary. Pakai csv bawaan Python.",
+      "imports": ["csv"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "read_csv"},
+        {"name": "delimiter", "label": "Delimiter", "type": "choice", "options": [",", ";", "\\t", "|"], "default": ","}
+      ],
+      "code": "def {{nama_fungsi}}(filepath, encoding=\"utf-8\"):\n    \"\"\"Baca file CSV dan kembalikan list of dict.\"\"\"\n    rows = []\n    with open(filepath, \"r\", encoding=encoding, newline=\"\") as f:\n        reader = csv.DictReader(f, delimiter='{{delimiter}}')\n        for row in reader:\n            rows.append(dict(row))\n    return rows\n",
+      "sample_values": {"nama_fungsi": "read_csv", "delimiter": ","}
+    },
+    {
+      "id": "csv_writer",
+      "title": "CSV Writer — tulis list of dict ke CSV",
+      "description": "Tulis data list of dict ke file CSV dengan header otomatis dari key dict pertama.",
+      "imports": ["csv"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "write_csv"},
+        {"name": "delimiter", "label": "Delimiter", "type": "choice", "options": [",", ";", "\\t", "|"], "default": ","}
+      ],
+      "code": "def {{nama_fungsi}}(filepath, rows, encoding=\"utf-8\"):\n    \"\"\"Tulis list of dict ke file CSV.\"\"\"\n    if not rows:\n        return\n    fieldnames = list(rows[0].keys())\n    with open(filepath, \"w\", encoding=encoding, newline=\"\") as f:\n        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter='{{delimiter}}')\n        writer.writeheader()\n        writer.writerows(rows)\n",
+      "sample_values": {"nama_fungsi": "write_csv", "delimiter": ","}
+    }
+  ]
+}

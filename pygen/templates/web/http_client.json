@@ -1,0 +1,32 @@
+{
+  "category": "http_client",
+  "label": "HTTP Client (stdlib)",
+  "templates": [
+    {
+      "id": "http_get",
+      "title": "HTTP GET — simple GET request dengan urllib",
+      "description": "Kirim GET request ke URL dan kembalikan response body sebagai string. Tanpa dependency eksternal.",
+      "imports": ["urllib.request", "json"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "http_get"},
+        {"name": "default_timeout", "label": "Default timeout (detik)", "type": "int", "default": 30}
+      ],
+      "code": "def {{nama_fungsi}}(url, headers=None, timeout={{default_timeout}}):\n    \"\"\"GET request ke URL, return response body string.\"\"\"\n    req = urllib.request.Request(url, headers=headers or {})\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        return resp.read().decode(\"utf-8\")\n",
+      "sample_values": {"nama_fungsi": "http_get", "default_timeout": 30}
+    },
+    {
+      "id": "http_post_json",
+      "title": "HTTP POST JSON — kirim JSON payload",
+      "description": "Kirim POST request dengan JSON body menggunakan urllib stdlib.",
+      "imports": ["urllib.request", "json"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "http_post_json"},
+        {"name": "default_timeout", "label": "Default timeout (detik)", "type": "int", "default": 30}
+      ],
+      "code": "def {{nama_fungsi}}(url, data, headers=None, timeout={{default_timeout}}):\n    \"\"\"POST request dengan JSON body.\"\"\"\n    payload = json.dumps(data).encode(\"utf-8\")\n    req_headers = {\"Content-Type\": \"application/json\"}\n    if headers:\n        req_headers.update(headers)\n    req = urllib.request.Request(url, data=payload, headers=req_headers, method=\"POST\")\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n        return json.loads(resp.read().decode(\"utf-8\"))\n",
+      "sample_values": {"nama_fungsi": "http_post_json", "default_timeout": 30}
+    }
+  ]
+}

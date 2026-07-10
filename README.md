@@ -1,18 +1,16 @@
-# PyGen
+# PyGen v2
 
-Generator fungsi Python **deterministik** untuk pemula yang sedang belajar
-*prompt engineering*. Tidak ada AI/LLM yang dipanggil di dalam alat ini
-sama sekali — semua kode dihasilkan lewat wizard menu bertingkat + bank
-template yang sudah diverifikasi, sehingga hasilnya selalu bisa diprediksi
-dan diulang persis sama.
+Generator fungsi Python **deterministik** — dari prompt engineering, file processing,
+web client, sampai CLI tool scaffold. Tidak ada AI/LLM yang dipanggil di dalam alat ini
+sama sekali — semua kode dihasilkan lewat wizard menu bertingkat + bank template yang
+sudah diverifikasi, sehingga hasilnya selalu bisa diprediksi dan diulang persis sama.
 
 ## Kenapa alat ini?
 
-Belajar prompt engineering sering kepentok kebutuhan Python: manggil API,
-parsing JSON dari respons model, testing beberapa varian prompt, dsb.
-PyGen menghilangkan beban itu — kamu jawab beberapa pertanyaan
-lewat wizard, dapat kode Python siap pakai (dan boleh dibaca-baca buat
-belajar pelan-pelan).
+Nulis boilerplate Python itu repetitif dan rawan typo — dari argparse scaffold,
+CSV reader, HTTP client, sampai JSON handler. PyGen menghilangkan beban itu —
+kamu jawab beberapa pertanyaan lewat wizard atau via CLI flag, dapat kode
+Python siap pakai yang sintaksnya otomatis divalidasi.
 
 ## Instalasi
 
@@ -23,7 +21,7 @@ Tidak butuh dependency eksternal — murni Python standard library.
 python3 -m pygen.cli_entry
 ```
 
-Atau install sebagai package (opsional):
+Atau install sebagai package:
 
 ```bash
 pip install -e .
@@ -32,81 +30,143 @@ pygen
 
 ## Cara Pakai
 
-1. Jalankan wizard.
-2. Pilih kategori (mis. "Output Handling").
-3. Pilih fungsi spesifik dari daftar (mis. "Ekstrak JSON dari respons LLM").
-4. Isi field yang diminta (atau tekan Enter untuk pakai default).
-5. Kode langsung ditampilkan & divalidasi sintaksnya otomatis.
-6. Bisa tambah fungsi lain untuk dirangkai jadi satu file, atau langsung
-   simpan.
-7. File `.py` hasilnya siap dijalankan atau di-`import` ke proyek lain.
+### Wizard Interaktif
+
+```bash
+pygen                       # wizard penuh (akan tanya domain dulu)
+pygen --domain data         # wizard langsung ke domain File & Data
+```
+
+### Mode Cepat (non-interaktif)
+
+```bash
+pygen --search "csv"                           # cari template
+pygen --list                                   # list semua 44 template
+pygen --domains                                # list semua domain
+pygen --batch csv_reader write_json_file       # generate tanpa prompt
+pygen --batch read_csv -v '{"nama_fungsi":"load_data"}'  # dengan values custom
+```
+
+### Wizard Step-by-Step
+
+1. Jalankan wizard (`pygen`).
+2. Pilih domain (Prompt Engineering / File & Data / Web & Network / CLI).
+3. Pilih kategori dalam domain.
+4. Pilih template spesifik.
+5. Isi field — tipe yang didukung: identifer, text, int, list, choice,
+   **bool**, **multi_line**, **args**, **optional**.
+6. Kode ditampilkan + divalidasi syntax (`ast.parse`).
+7. Bisa tambah fungsi lain, atau langsung simpan file `.py`.
+
+## Domain & Template (44 template, 4 domain)
+
+| Domain | Kategori | Template |
+|---|---|---|
+| **Prompt Engineering** | API & Koneksi LLM | generic_api_caller, retry_handler, multi_provider_switcher |
+| | Embeddings | embedding_fetcher, cosine_similarity, simple_vector_store |
+| | Error Handling | llm_exception_hierarchy, circuit_breaker, fallback_chain |
+| | Evaluasi | rubric_scorer, llm_as_judge, comparison_ranker |
+| | Iterasi & Testing | prompt_ab_tester, batch_runner, simple_logger |
+| | Output Handling | json_extractor, output_validator, retry_on_invalid_output |
+| | Prompt Chaining | linear_chain, context_passing, branching |
+| | Prompt Construction | template_filler, few_shot_builder, message_composer |
+| | Streaming | sse_stream_reader, stream_collector, chunked_http_reader |
+| | Utilitas | token_estimator, cost_estimator, conversation_history |
+| **File & Data** | CSV Tools | csv_reader, csv_writer |
+| | File Operations | read_text_file, write_text_file |
+| | JSON Tools | read_json_file, write_json_file |
+| **Web & Network** | HTTP Client | http_get, http_post_json |
+| | Web Scraping | html_link_extractor, simple_downloader |
+| **CLI & Automation** | Argparse Scaffold | cli_tool_scaffold, argparse_typed_args |
+| | Subprocess | run_command, background_worker |
 
 ## Struktur Proyek
 
 ```
-pygen_toolkit/
+pygen/
 ├── pygen/
 │   ├── core/
-│   │   ├── registry.py         # memuat & validasi bank data template
-│   │   ├── template_engine.py  # render placeholder {{field}} -> kode
-│   │   ├── validator.py        # ast.parse() — gerbang keamanan sintaks
-│   │   └── compositor.py       # gabung banyak fungsi jadi satu file
-│   ├── templates/               # BANK DATA (edit di sini untuk nambah fungsi)
-│   │   ├── api_connection.json
-│   │   ├── prompt_construction.json
-│   │   ├── output_handling.json
-│   │   ├── iteration_testing.json
-│   │   └── utilities.json
+│   │   ├── registry.py          # multi-domain loader + lazy load + search
+│   │   ├── template_engine.py   # render {{field}}, conditional blocks {{#field}}
+│   │   ├── validator.py         # ast.parse() — gerbang keamanan sintaks
+│   │   └── compositor.py        # gabung fungsi + auto requirements header
+│   ├── templates/               # BANK DATA per domain
+│   │   ├── prompt_eng/
+│   │   │   ├── _meta.json
+│   │   │   ├── api_connection.json
+│   │   │   └── ...
+│   │   ├── data/
+│   │   │   ├── _meta.json
+│   │   │   ├── csv_tools.json
+│   │   │   ├── file_ops.json
+│   │   │   └── json_tools.json
+│   │   ├── web/
+│   │   │   ├── _meta.json
+│   │   │   ├── http_client.json
+│   │   │   └── scraping.json
+│   │   └── cli/
+│   │       ├── _meta.json
+│   │       ├── argparse_scaffold.json
+│   │       └── subprocess.json
 │   ├── wizard/
-│   │   └── cli.py               # menu bertingkat (decision tree)
-│   └── cli_entry.py              # entry point
+│   │   └── cli.py               # menu bertingkat (decision tree) + domain picker
+│   └── cli_entry.py             # entry point + search/list/domains/batch flags
 ├── tests/
-│   └── test_templates.py         # validasi otomatis SELURUH bank data
+│   └── test_templates.py         # 10 test suite — semua template wajib valid
 ├── examples/
-│   └── example_usage.py          # contoh pakai engine tanpa wizard (programatik)
+│   └── example_usage.py          # pakai engine tanpa wizard (programatik)
 ├── docs/
-│   ├── BLUEPRINT.md              # arsitektur & prinsip desain lengkap
-│   └── CONTRIBUTING_TEMPLATES.md # cara nambah template baru
-├── requirements.txt
-├── setup.py
-└── README.md
+│   ├── BLUEPRINT.md              # arsitektur & prinsip desain
+│   └── CONTRIBUTING_TEMPLATES.md # cara nambah template & domain baru
+└── setup.py
 ```
 
-## Bank Template Bawaan (15 fungsi, 5 kategori)
+## Field Types Lengkap
 
-| Kategori | Fungsi |
-|---|---|
-| API & Koneksi LLM | pemanggil API generik, retry+backoff, multi-provider switcher |
-| Prompt Construction | template filler, few-shot builder, message composer |
-| Output Handling | JSON extractor, schema validator, retry-on-invalid-output |
-| Iterasi & Testing | A/B tester prompt, batch runner, logger CSV |
-| Utilitas | token estimator, cost estimator, conversation history manager |
+| Type | Input | Output Contoh |
+|---|---|---|
+| `identifier` | nama variabel Python | `read_csv` |
+| `text` | teks bebas | `"hello world"` |
+| `int` | angka bulat | `30` |
+| `list` | comma-separated | `["a", "b", "c"]` |
+| `choice` | pilih dari opsi | `True` |
+| `bool` | yes/no → True/False | `True` |
+| `multi_line` | teks multi-baris (akhiri baris kosong) | `"""docstring"""` |
+| `args` | parameter fungsi | `name, age: int = 0, *flags` |
+| `optional` | teks opsional, kosong → skip | (varies) |
+
+## Conditional Blocks
+
+Gunakan `{{#fieldname}}...{{/fieldname}}` untuk menyembunyikan bagian kode
+saat field kosong / False:
+
+```json
+{
+  "code": "def greet(name):\n    print('Hello'){{#verbose}}\n    print('Debug: processing'){{/verbose}}"
+}
+```
 
 ## Menambah Template Baru
 
-Lihat `docs/CONTRIBUTING_TEMPLATES.md`. Intinya: tambah entri JSON di
-`pygen/templates/`, isi `sample_values`, jalankan test — tidak perlu
-sentuh kode Python inti sama sekali.
+1. Buat file `.json` di sub-folder domain, atau buat domain baru dengan folder + file `_meta.json`.
+2. Ikuti skema: `category`, `label`, `templates` — tiap template wajib punya `sample_values`.
+3. Jalankan `python tests/test_templates.py` untuk validasi.
+4. Optional: tambah `"requires": {"python": ">=3.10", "packages": ["requests"]}` per template.
 
 ## Menjalankan Test
 
 ```bash
-python -m pytest tests/ -v
-# atau tanpa pytest:
 python tests/test_templates.py
 ```
 
-Test ini memvalidasi **setiap** template di bank data: render dengan
-`sample_values`, cek sintaks dengan `ast.parse()`, dan pastikan gabungan
-semua template tetap valid saat dirangkai jadi satu file.
+10 test termasuk: validasi semua template, cek placeholder tak tersisa,
+composite seluruh template jadi satu file, lazy load per domain, search,
+dan batch workflow.
 
 ## Prinsip Inti
 
 - **Deterministik** — tidak ada randomness, tidak ada model bahasa.
-- **Selection, bukan guessing** — user memilih dari menu, bukan free-text
-  yang "ditebak" sistem.
-- **Aman** — tidak pernah `eval()`/`exec()` input user; validasi sintaks
-  lewat `ast.parse()` sebelum kode ditunjukkan.
+- **Selection, bukan guessing** — user memilih dari menu / search by keyword.
+- **Aman** — tidak pernah `eval()`/`exec()` input user; `ast.parse()` setiap output.
 - **Data-driven** — nambah kemampuan = nambah JSON, bukan nambah kode.
-
-Detail lengkap ada di `docs/BLUEPRINT.md`.
+- **Multi-domain** — 4 domain siap pakai, extensible via sub-folder.

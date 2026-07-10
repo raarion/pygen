@@ -1,0 +1,36 @@
+{
+  "category": "argparse_scaffold",
+  "label": "Argparse Scaffold",
+  "templates": [
+    {
+      "id": "cli_tool_scaffold",
+      "title": "CLI tool scaffold — skeleton argparse lengkap",
+      "description": "Generate file main.py lengkap dengan argparse boilerplate dan struktur proyek.",
+      "imports": ["argparse", "sys"],
+      "requires": {},
+      "scope": "module",
+      "fields": [
+        {"name": "tool_name", "label": "Nama tool CLI", "type": "identifier", "default": "mycli"},
+        {"name": "description", "label": "Deskripsi tool", "type": "text", "default": "A command-line utility"},
+        {"name": "subcommand_name", "label": "Nama subcommand pertama", "type": "identifier", "default": "run"},
+        {"name": "subcommand_help", "label": "Help text subcommand", "type": "text", "default": "Execute the main action"}
+      ],
+      "code": "import argparse\nimport sys\n\n\ndef cmd_{{subcommand_name}}(args):\n    \"\"\"{{subcommand_help}}\"\"\"\n    print(\"Running {{tool_name}} {{subcommand_name}}...\")\n    # TODO: implement your logic here\n    return 0\n\n\ndef main():\n    parser = argparse.ArgumentParser(\n        prog=\"{{tool_name}}\",\n        description=\"{{description}}\"\n    )\n    subparsers = parser.add_subparsers(dest=\"command\", help=\"Available commands\")\n\n    # {{subcommand_name}}\n    p = subparsers.add_parser(\"{{subcommand_name}}\", help=\"{{subcommand_help}}\")\n    p.set_defaults(func=cmd_{{subcommand_name}})\n\n    args = parser.parse_args()\n\n    if not hasattr(args, \"func\"):\n        parser.print_help()\n        return 1\n\n    try:\n        return args.func(args)\n    except Exception as e:\n        print(f\"Error: {e}\", file=sys.stderr)\n        return 1\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+      "sample_values": {"tool_name": "mycli", "description": "A command-line utility", "subcommand_name": "run", "subcommand_help": "Execute the main action"}
+    },
+    {
+      "id": "argparse_typed_args",
+      "title": "Argparse with typed args — parser dengan arg berbasis type",
+      "description": "Argparse parser sederhana dengan positional args typed (int, str, path).",
+      "imports": ["argparse", "os", "sys"],
+      "requires": {},
+      "fields": [
+        {"name": "tool_name", "label": "Nama tool CLI", "type": "identifier", "default": "calculator"},
+        {"name": "description", "label": "Deskripsi tool", "type": "text", "default": "A simple calculator"},
+        {"name": "extra_args", "label": "Tambahan argumen opsional (kosongkan jika tidak perlu)", "type": "optional", "default": ""}
+      ],
+      "code": "import argparse\nimport sys\n\n\ndef main():\n    parser = argparse.ArgumentParser(\n        prog=\"{{tool_name}}\",\n        description=\"{{description}}\"\n    )\n    parser.add_argument(\"number\", type=float, help=\"A number\")\n    parser.add_argument(\"--verbose\", \"-v\", action=\"store_true\", help=\"Verbose output\")\n{{#extra_args}}\n    {{extra_args}}\n{{/extra_args}}\n\n    args = parser.parse_args()\n\n    if args.verbose:\n        print(f\"Input: {args.number}\")\n\n    print(f\"Result: {args.number}\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+      "sample_values": {"tool_name": "calculator", "description": "A simple calculator", "extra_args": "parser.add_argument(\"--multiply\", \"-m\", action=\"store_true\", help=\"Multiply instead\")"}
+    }
+  ]
+}

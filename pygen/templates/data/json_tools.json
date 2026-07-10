@@ -1,0 +1,31 @@
+{
+  "category": "json_tools",
+  "label": "JSON Tools",
+  "templates": [
+    {
+      "id": "read_json_file",
+      "title": "JSON reader — baca file JSON",
+      "description": "Baca file JSON dan kembalikan sebagai dict/list Python.",
+      "imports": ["json"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "read_json"}
+      ],
+      "code": "def {{nama_fungsi}}(filepath, encoding=\"utf-8\"):\n    \"\"\"Baca file JSON.\"\"\"\n    with open(filepath, \"r\", encoding=encoding) as f:\n        return json.load(f)\n",
+      "sample_values": {"nama_fungsi": "read_json"}
+    },
+    {
+      "id": "write_json_file",
+      "title": "JSON writer — tulis data ke file JSON",
+      "description": "Tulis objek Python ke file JSON dengan indentasi.",
+      "imports": ["json"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "write_json"},
+        {"name": "indent", "label": "Indentasi (spasi)", "type": "int", "default": 2}
+      ],
+      "code": "def {{nama_fungsi}}(filepath, data, encoding=\"utf-8\"):\n    \"\"\"Tulis data ke file JSON.\"\"\"\n    with open(filepath, \"w\", encoding=encoding) as f:\n        json.dump(data, f, indent={{indent}}, ensure_ascii=False)\n",
+      "sample_values": {"nama_fungsi": "write_json", "indent": 2}
+    }
+  ]
+}

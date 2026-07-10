@@ -1,0 +1,31 @@
+{
+  "category": "subprocess",
+  "label": "Subprocess Tools",
+  "templates": [
+    {
+      "id": "run_command",
+      "title": "Run shell command — eksekusi perintah shell",
+      "description": "Jalankan perintah shell, tangkap stdout/stderr/exit code.",
+      "imports": ["subprocess"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "run_cmd"},
+        {"name": "default_timeout", "label": "Default timeout (detik)", "type": "int", "default": 60}
+      ],
+      "code": "def {{nama_fungsi}}(cmd, timeout={{default_timeout}}, cwd=None, env=None):\n    \"\"\"Jalankan shell command, return (stdout, stderr, returncode).\"\"\"\n    result = subprocess.run(\n        cmd,\n        shell=True,\n        capture_output=True,\n        text=True,\n        timeout=timeout,\n        cwd=cwd,\n        env=env,\n    )\n    return result.stdout, result.stderr, result.returncode\n",
+      "sample_values": {"nama_fungsi": "run_cmd", "default_timeout": 60}
+    },
+    {
+      "id": "background_worker",
+      "title": "Background worker — jalankan task di background thread",
+      "description": "Decorator untuk menjalankan fungsi di background thread (daemon).",
+      "imports": ["threading", "functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama decorator", "type": "identifier", "default": "background"}
+      ],
+      "code": "def {{nama_fungsi}}(func):\n    \"\"\"Decorator: jalankan func di background thread (daemon).\"\"\"\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        thread = threading.Thread(target=func, args=args, kwargs=kwargs, daemon=True)\n        thread.start()\n        return thread\n    return wrapper\n",
+      "sample_values": {"nama_fungsi": "background"}
+    }
+  ]
+}
