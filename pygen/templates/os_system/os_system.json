@@ -1,0 +1,177 @@
+{
+  "category": "os_system",
+  "label": "OS / System",
+  "templates": [
+    {
+      "id": "memory_usage",
+      "title": "Current memory usage (RSS)",
+      "description": "Memory process saat ini",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "memory_usage"
+        }
+      ],
+      "code": "def {{nama_fungsi}}():\n    \"\"\"Return RSS bytes, atau None jika tidak tersedia.\"\"\"\n    try:\n        import resource\n        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024\n    except Exception:\n        try:\n            import os\n            import psutil  # optional\n            return psutil.Process(os.getpid()).memory_info().rss\n        except Exception:\n            return None\n",
+      "sample_values": {
+        "nama_fungsi": "memory_usage"
+      }
+    },
+    {
+      "id": "disk_usage",
+      "title": "Disk usage checker",
+      "description": "Free/total disk space",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "disk_usage"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(path='.'):\n    \"\"\"Return dict total/used/free.\"\"\"\n    import shutil\n    du = shutil.disk_usage(path)\n    return {'total': du.total, 'used': du.used, 'free': du.free}\n",
+      "sample_values": {
+        "nama_fungsi": "disk_usage"
+      }
+    },
+    {
+      "id": "cpu_info",
+      "title": "CPU info & count",
+      "description": "Jumlah core, usage percent",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "cpu_info"
+        }
+      ],
+      "code": "def {{nama_fungsi}}():\n    \"\"\"Return cpu count. Load avg jika tersedia.\"\"\"\n    import os\n    info = {'count': os.cpu_count()}\n    try:\n        info['load_avg'] = os.getloadavg()\n    except (AttributeError, OSError):\n        info['load_avg'] = None\n    return info\n",
+      "sample_values": {
+        "nama_fungsi": "cpu_info"
+      }
+    },
+    {
+      "id": "process_list",
+      "title": "Running process lister",
+      "description": "List proses yang sedang berjalan",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "process_list"
+        }
+      ],
+      "code": "def {{nama_fungsi}}():\n    \"\"\"Return list dict pid/name. Best-effort cross-platform.\"\"\"\n    import subprocess, sys\n    procs = []\n    try:\n        if sys.platform.startswith('win'):\n            out = subprocess.check_output(['tasklist', '/FO', 'CSV', '/NH'], text=True, stderr=subprocess.DEVNULL)\n            for line in out.splitlines():\n                parts = [p.strip('\"') for p in line.split('\",\"')]\n                if parts:\n                    procs.append({'name': parts[0], 'pid': parts[1] if len(parts) > 1 else ''})\n        else:\n            out = subprocess.check_output(['ps', '-eo', 'pid,comm'], text=True, stderr=subprocess.DEVNULL)\n            for line in out.splitlines()[1:]:\n                parts = line.strip().split(None, 1)\n                if len(parts) == 2:\n                    procs.append({'pid': parts[0], 'name': parts[1]})\n    except Exception:\n        pass\n    return procs\n",
+      "sample_values": {
+        "nama_fungsi": "process_list"
+      }
+    },
+    {
+      "id": "env_loader",
+      "title": "Environment variable loader",
+      "description": "Baca dan validasi environment variables",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "env_loader"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(keys, required=False, defaults=None):\n    \"\"\"keys: list nama env. Return dict.\"\"\"\n    import os\n    defaults = defaults or {}\n    result = {}\n    missing = []\n    for k in keys:\n        v = os.environ.get(k, defaults.get(k))\n        if v is None and required:\n            missing.append(k)\n        result[k] = v\n    if missing:\n        raise EnvironmentError(f\"Missing required env vars: {', '.join(missing)}\")\n    return result\n",
+      "sample_values": {
+        "nama_fungsi": "env_loader"
+      }
+    },
+    {
+      "id": "platform_info",
+      "title": "Platform detector",
+      "description": "OS, architecture, Python version, hostname",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "platform_info"
+        }
+      ],
+      "code": "def {{nama_fungsi}}():\n    \"\"\"Return platform info dict.\"\"\"\n    import platform, sys\n    return {\n        'system': platform.system(),\n        'release': platform.release(),\n        'machine': platform.machine(),\n        'python': platform.python_version(),\n        'hostname': platform.node(),\n        'executable': sys.executable,\n    }\n",
+      "sample_values": {
+        "nama_fungsi": "platform_info"
+      }
+    },
+    {
+      "id": "signal_handler",
+      "title": "Signal handler helper",
+      "description": "Decorator untuk tangkap SIGINT/SIGTERM",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "signal_handler"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(func=None, signals=None):\n    \"\"\"Decorator: graceful shutdown on signals.\"\"\"\n    import signal, functools\n    if signals is None:\n        signals = [signal.SIGINT, signal.SIGTERM]\n    def decorator(f):\n        @functools.wraps(f)\n        def wrapper(*args, **kwargs):\n            stop = {'flag': False}\n            def handler(signum, frame):\n                stop['flag'] = True\n            old = {}\n            for s in signals:\n                try:\n                    old[s] = signal.signal(s, handler)\n                except Exception:\n                    pass\n            try:\n                return f(*args, stop_flag=lambda: stop['flag'], **kwargs)\n            finally:\n                for s, h in old.items():\n                    try:\n                        signal.signal(s, h)\n                    except Exception:\n                        pass\n        return wrapper\n    if func is None:\n        return decorator\n    return decorator(func)\n",
+      "sample_values": {
+        "nama_fungsi": "signal_handler"
+      }
+    },
+    {
+      "id": "pid_file",
+      "title": "PID file manager",
+      "description": "Tulis/baca/hapus PID file untuk daemon",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_class",
+          "label": "Nama class",
+          "type": "identifier",
+          "default": "PidFile"
+        }
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"PID file helper.\"\"\"\n    def __init__(self, path):\n        self.path = path\n\n    def write(self):\n        import os\n        with open(self.path, 'w') as f:\n            f.write(str(os.getpid()))\n\n    def read(self):\n        try:\n            with open(self.path) as f:\n                return int(f.read().strip())\n        except Exception:\n            return None\n\n    def remove(self):\n        import os\n        try:\n            os.remove(self.path)\n        except OSError:\n            pass\n\n    def is_running(self):\n        pid = self.read()\n        if not pid:\n            return False\n        import os\n        try:\n            os.kill(pid, 0)\n            return True\n        except OSError:\n            return False\n",
+      "sample_values": {
+        "nama_class": "PidFile"
+      }
+    },
+    {
+      "id": "which",
+      "title": "which — cari executable di PATH",
+      "description": "Seperti Unix `which` command",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "which_tool"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(cmd):\n    \"\"\"Return full path ke executable, atau None.\"\"\"\n    import shutil\n    return shutil.which(cmd)\n",
+      "sample_values": {
+        "nama_fungsi": "which_tool"
+      }
+    }
+  ]
+}

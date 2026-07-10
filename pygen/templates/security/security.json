@@ -1,0 +1,169 @@
+{
+  "category": "security",
+  "label": "Security",
+  "templates": [
+    {
+      "id": "hash_file",
+      "title": "File hasher — MD5/SHA1/SHA256",
+      "description": "Hash file, verifikasi checksum",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "hash_file"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(path, algo='sha256'):\n    \"\"\"Return hex digest.\"\"\"\n    import hashlib\n    h = hashlib.new(algo)\n    with open(path, 'rb') as f:\n        for chunk in iter(lambda: f.read(8192), b''):\n            h.update(chunk)\n    return h.hexdigest()\n",
+      "sample_values": {
+        "nama_fungsi": "hash_file"
+      }
+    },
+    {
+      "id": "random_string",
+      "title": "Secure random string generator",
+      "description": "Generate token/password random",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "random_string"
+        },
+        {
+          "name": "length",
+          "label": "Length",
+          "type": "int",
+          "default": 32
+        }
+      ],
+      "code": "def {{nama_fungsi}}(length={{length}}, alphabet=None):\n    \"\"\"Secure random string.\"\"\"\n    import secrets, string\n    if alphabet is None:\n        alphabet = string.ascii_letters + string.digits\n    return ''.join(secrets.choice(alphabet) for _ in range(length))\n",
+      "sample_values": {
+        "nama_fungsi": "random_string",
+        "length": 32
+      }
+    },
+    {
+      "id": "password_strength",
+      "title": "Password strength checker",
+      "description": "Skor kekuatan password + saran",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "password_strength"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(password):\n    \"\"\"Return {'score':0-5, 'feedback': [...]}.\"\"\"\n    import re\n    score = 0\n    feedback = []\n    if len(password) >= 8: score += 1\n    else: feedback.append(\"Minimal 8 karakter\")\n    if re.search(r'[a-z]', password): score += 1\n    else: feedback.append(\"Tambah huruf kecil\")\n    if re.search(r'[A-Z]', password): score += 1\n    else: feedback.append(\"Tambah huruf besar\")\n    if re.search(r'\\d', password): score += 1\n    else: feedback.append(\"Tambah angka\")\n    if re.search(r'[^a-zA-Z0-9]', password): score += 1\n    else: feedback.append(\"Tambah simbol\")\n    return {'score': score, 'feedback': feedback, 'strong': score >= 4}\n",
+      "sample_values": {
+        "nama_fungsi": "password_strength"
+      }
+    },
+    {
+      "id": "hmac_sign",
+      "title": "HMAC sign & verify",
+      "description": "Tanda tangan dan verifikasi dengan HMAC",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "hmac_sign"
+        }
+      ],
+      "code": "def {{nama_fungsi}}_sign(message, key):\n    \"\"\"Return hex HMAC-SHA256.\"\"\"\n    import hmac, hashlib\n    if isinstance(key, str): key = key.encode()\n    if isinstance(message, str): message = message.encode()\n    return hmac.new(key, message, hashlib.sha256).hexdigest()\n\ndef {{nama_fungsi}}_verify(message, key, signature):\n    import hmac\n    expected = {{nama_fungsi}}_sign(message, key)\n    return hmac.compare_digest(expected, signature)\n",
+      "sample_values": {
+        "nama_fungsi": "hmac_sign"
+      }
+    },
+    {
+      "id": "simple_encrypt",
+      "title": "Simple AES encrypt/decrypt (PyCryptodome/stdlib)",
+      "description": "Encrypt/decrypt dengan key",
+      "imports": [],
+      "requires": {
+        "packages": [
+          "cryptography"
+        ]
+      },
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "simple_encrypt"
+        }
+      ],
+      "code": "def {{nama_fungsi}}_encrypt(plaintext, password):\n    \"\"\"AES-GCM via cryptography (fallback: XOR). Return base64.\"\"\"\n    try:\n        import os, base64\n        from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC\n        from cryptography.hazmat.primitives import hashes\n        salt = os.urandom(16)\n        kdf = PBKDF2HMAC(hashes.SHA256(), 32, salt, 100000)\n        key = kdf.derive(password.encode() if isinstance(password, str) else password)\n        aes = AESGCM(key)\n        nonce = os.urandom(12)\n        ct = aes.encrypt(nonce, plaintext.encode() if isinstance(plaintext, str) else plaintext, None)\n        return base64.b64encode(salt + nonce + ct).decode()\n    except Exception:\n        # Fallback XOR (NOT SECURE, demo only)\n        import base64\n        key = (password.encode() if isinstance(password, str) else password)\n        data = plaintext.encode() if isinstance(plaintext, str) else plaintext\n        out = bytes(b ^ key[i % len(key)] for i, b in enumerate(data))\n        return base64.b64encode(b'XOR' + out).decode()\n\ndef {{nama_fungsi}}_decrypt(token, password):\n    import base64\n    raw = base64.b64decode(token.encode())\n    if raw.startswith(b'XOR'):\n        key = password.encode() if isinstance(password, str) else password\n        data = raw[3:]\n        out = bytes(b ^ key[i % len(key)] for i, b in enumerate(data))\n        return out.decode()\n    try:\n        from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC\n        from cryptography.hazmat.primitives import hashes\n        salt, nonce, ct = raw[:16], raw[16:28], raw[28:]\n        kdf = PBKDF2HMAC(hashes.SHA256(), 32, salt, 100000)\n        key = kdf.derive(password.encode() if isinstance(password, str) else password)\n        aes = AESGCM(key)\n        pt = aes.decrypt(nonce, ct, None)\n        return pt.decode()\n    except Exception as e:\n        raise ValueError(\"Decrypt failed\") from e\n",
+      "sample_values": {
+        "nama_fungsi": "simple_encrypt"
+      }
+    },
+    {
+      "id": "sanitize_html",
+      "title": "HTML sanitizer",
+      "description": "Hapus tag berbahaya, sisakan allowed tags",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "sanitize_html"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(html, allowed_tags=None):\n    \"\"\"Strip tag berbahaya. Very simple.\"\"\"\n    import re\n    from html.parser import HTMLParser\n    if allowed_tags is None:\n        allowed_tags = {'b','i','u','em','strong','p','br','ul','ol','li'}\n    class Sanitizer(HTMLParser):\n        def __init__(self):\n            super().__init__()\n            self.out = []\n        def handle_starttag(self, tag, attrs):\n            if tag.lower() in allowed_tags:\n                self.out.append(f\"<{tag}>\")\n        def handle_endtag(self, tag):\n            if tag.lower() in allowed_tags:\n                self.out.append(f\"</{tag}>\")\n        def handle_data(self, data):\n            self.out.append(data)\n    s = Sanitizer()\n    s.feed(html)\n    return ''.join(s.out)\n",
+      "sample_values": {
+        "nama_fungsi": "sanitize_html"
+      }
+    },
+    {
+      "id": "input_sanitizer",
+      "title": "Input sanitizer — anti-injection dasar",
+      "description": "Escape karakter khusus untuk SQL/HTML/Shell",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "input_sanitizer"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(text, mode='html'):\n    \"\"\"mode: html, sql, shell.\"\"\"\n    if mode == 'html':\n        import html\n        return html.escape(text)\n    elif mode == 'sql':\n        return text.replace(\"'\", \"''\")\n    elif mode == 'shell':\n        import shlex\n        return shlex.quote(text)\n    return text\n",
+      "sample_values": {
+        "nama_fungsi": "input_sanitizer"
+      }
+    },
+    {
+      "id": "jwt_lite",
+      "title": "JWT-lite — encode/decode tanpa library",
+      "description": "HS256 encode/decode manual",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "jwt_lite"
+        }
+      ],
+      "code": "def {{nama_fungsi}}_encode(payload, secret):\n    \"\"\"Encode JWT HS256.\"\"\"\n    import json, base64, hmac, hashlib\n    def b64u(b):\n        return base64.urlsafe_b64encode(b).rstrip(b'=').decode()\n    header = {'alg': 'HS256', 'typ': 'JWT'}\n    h_b = b64u(json.dumps(header, separators=(',', ':')).encode())\n    p_b = b64u(json.dumps(payload, separators=(',', ':')).encode())\n    signing = f\"{h_b}.{p_b}\".encode()\n    sig = hmac.new(secret.encode() if isinstance(secret, str) else secret, signing, hashlib.sha256).digest()\n    s_b = b64u(sig)\n    return f\"{h_b}.{p_b}.{s_b}\"\n\ndef {{nama_fungsi}}_decode(token, secret, verify=True):\n    import json, base64, hmac, hashlib\n    def b64u_decode(s):\n        s += '=' * (-len(s) % 4)\n        return base64.urlsafe_b64decode(s)\n    try:\n        h_b, p_b, s_b = token.split('.')\n    except ValueError:\n        raise ValueError(\"Invalid token\")\n    if verify:\n        signing = f\"{h_b}.{p_b}\".encode()\n        sig = b64u_decode(s_b)\n        expected = hmac.new(secret.encode() if isinstance(secret, str) else secret, signing, hashlib.sha256).digest()\n        if not hmac.compare_digest(sig, expected):\n            raise ValueError(\"Invalid signature\")\n    payload = json.loads(b64u_decode(p_b))\n    return payload\n",
+      "sample_values": {
+        "nama_fungsi": "jwt_lite"
+      }
+    }
+  ]
+}

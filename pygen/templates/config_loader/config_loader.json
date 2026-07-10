@@ -1,0 +1,141 @@
+{
+  "category": "config_loader",
+  "label": "Config Loader",
+  "templates": [
+    {
+      "id": "dotenv_reader",
+      "title": ".env file reader",
+      "description": "Baca file .env ke os.environ / dict",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "dotenv_reader"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(path='.env', set_environ=True):\n    \"\"\"Parse .env sederhana.\"\"\"\n    import os\n    env = {}\n    try:\n        with open(path) as f:\n            for line in f:\n                line = line.strip()\n                if not line or line.startswith('#'):\n                    continue\n                if '=' not in line:\n                    continue\n                k, v = line.split('=', 1)\n                k = k.strip()\n                v = v.strip().strip('\"').strip(\"'\")\n                env[k] = v\n                if set_environ:\n                    os.environ.setdefault(k, v)\n    except FileNotFoundError:\n        pass\n    return env\n",
+      "sample_values": {
+        "nama_fungsi": "dotenv_reader"
+      }
+    },
+    {
+      "id": "ini_reader",
+      "title": "INI/configparser reader",
+      "description": "Baca file .ini/.cfg dengan configparser",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "ini_reader"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(path):\n    \"\"\"Return dict section -> dict.\"\"\"\n    import configparser\n    cp = configparser.ConfigParser()\n    cp.read(path, encoding='utf-8')\n    return {s: dict(cp[s]) for s in cp.sections()}\n",
+      "sample_values": {
+        "nama_fungsi": "ini_reader"
+      }
+    },
+    {
+      "id": "toml_reader",
+      "title": "TOML reader (stdlib, Python 3.11+)",
+      "description": "Baca TOML dengan tomllib",
+      "imports": [],
+      "requires": {
+        "python": ">=3.11"
+      },
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "toml_reader"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(path):\n    \"\"\"Read TOML file.\"\"\"\n    try:\n        import tomllib\n    except ModuleNotFoundError:\n        import tomli as tomllib  # type: ignore\n    with open(path, 'rb') as f:\n        return tomllib.load(f)\n",
+      "sample_values": {
+        "nama_fungsi": "toml_reader"
+      }
+    },
+    {
+      "id": "yaml_lite_reader",
+      "title": "YAML-lite reader (tanpa PyYAML)",
+      "description": "Baca YAML sederhana dengan regex + ast",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "yaml_lite_reader"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(path):\n    \"\"\"YAML-lite: hanya key: value flat / list sederhana.\"\"\"\n    import ast\n    data = {}\n    current_key = None\n    with open(path, encoding='utf-8') as f:\n        for raw in f:\n            line = raw.strip()\n            if not line or line.startswith('#'):\n                continue\n            if line.startswith('- '):\n                if current_key:\n                    data.setdefault(current_key, []).append(line[2:].strip())\n                continue\n            if ':' in line:\n                k, v = line.split(':', 1)\n                k = k.strip()\n                v = v.strip()\n                current_key = k\n                if v == '':\n                    data[k] = []\n                else:\n                    try:\n                        data[k] = ast.literal_eval(v)\n                    except Exception:\n                        data[k] = v\n    return data\n",
+      "sample_values": {
+        "nama_fungsi": "yaml_lite_reader"
+      }
+    },
+    {
+      "id": "config_merger",
+      "title": "Layered config merger",
+      "description": "Default → file → env → CLI args",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "config_merger"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(default, file_cfg=None, env_prefix='', cli_args=None):\n    \"\"\"Merge config layers. env_prefix misal 'APP_'.\"\"\"\n    import os\n    result = {}\n    result.update(default or {})\n    if file_cfg:\n        result.update(file_cfg)\n    if env_prefix:\n        plen = len(env_prefix)\n        for k, v in os.environ.items():\n            if k.startswith(env_prefix):\n                result[k[plen:].lower()] = v\n    if cli_args:\n        result.update({k: v for k, v in cli_args.items() if v is not None})\n    return result\n",
+      "sample_values": {
+        "nama_fungsi": "config_merger"
+      }
+    },
+    {
+      "id": "config_validator",
+      "title": "Config schema validator",
+      "description": "Validasi config punya key wajib + tipe benar",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "config_validator"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(config, schema):\n    \"\"\"schema: dict key -> type atau tuple types. Return list errors.\"\"\"\n    errors = []\n    for key, expected in schema.items():\n        if key not in config:\n            errors.append(f\"Missing key: {key}\")\n            continue\n        val = config[key]\n        if not isinstance(val, expected):\n            errors.append(f\"{key}: expected {expected}, got {type(val).__name__}\")\n    return errors\n",
+      "sample_values": {
+        "nama_fungsi": "config_validator"
+      }
+    },
+    {
+      "id": "env_to_config",
+      "title": "ENV prefix to dict",
+      "description": "`APP_HOST=...` → `{\"host\": \"...\"}`",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {
+          "name": "nama_fungsi",
+          "label": "Nama fungsi",
+          "type": "identifier",
+          "default": "env_to_config"
+        }
+      ],
+      "code": "def {{nama_fungsi}}(prefix):\n    \"\"\"Collect env vars dengan prefix.\"\"\"\n    import os\n    out = {}\n    plen = len(prefix)\n    for k, v in os.environ.items():\n        if k.startswith(prefix):\n            key = k[plen:].lower()\n            out[key] = v\n    return out\n",
+      "sample_values": {
+        "nama_fungsi": "env_to_config"
+      }
+    }
+  ]
+}
