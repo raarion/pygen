@@ -242,63 +242,148 @@ API Callers, Embedding Tools, Error Handling, Evaluation, Prompt Chaining, Strea
 
 ```
 pygen/
-├── pygen/
-│   ├── core/
-│   │   ├── registry.py          # 31-domain loader + lazy load + search
-│   │   ├── template_engine.py   # render {{field}}, conditional blocks {{#field}}
-│   │   ├── validator.py         # ast.parse() — gerbang keamanan sintaks
-│   │   └── compositor.py        # gabung fungsi + auto requirements header
-│   │
-│   ├── templates/               # 258 templates di 31 domain 🎯
-│   │   ├── prompt_eng/          # 30 templates — Prompt Engineering
-│   │   ├── data_structures/     # 10 templates — LRU Cache, Priority Queue, dll
-│   │   ├── algorithms/          # 10 templates — Binary Search, QuickSort, dll
-│   │   ├── string_tools/        # 11 templates — Slugify, Anonymizer, dll
-│   │   ├── datetime_utils/      # 10 templates — Date Parser, Timezone, dll
-│   │   ├── math_stats/          # 11 templates — Statistics, Regression, dll
-│   │   ├── iter_tools/          #  8 templates — Chunked, Flatten, dll
-│   │   ├── filesystem/          # 13 templates — Dir Walker, Atomic Write, dll
-│   │   ├── os_system/           #  9 templates — Memory Monitor, Signal Handler, dll
-│   │   ├── config_loader/       #  7 templates — TOML/YAML Reader, Config Merger, dll
-│   │   ├── security/            #  8 templates — JWT Lite, Password Checker, dll
-│   │   ├── networking/          #  8 templates — TCP Server, Port Scanner, dll
-│   │   ├── api_client/          #  8 templates — REST Client, OAuth2, Circuit Breaker, dll
-│   │   ├── web_frameworks/      #  5 templates — Flask/FastAPI Generator, dll
-│   │   ├── database/            #  8 templates — SQLite CRUD, Migration, dll
-│   │   ├── serialization/       #  8 templates — Safe Pickle, MessagePack, dll
-│   │   ├── concurrency/         # 10 templates — Thread Pool, Async, Debounce, dll
-│   │   ├── performance/         #  4 templates — Timer, Memoize, Profiler, dll
-│   │   ├── testing/             #  6 templates — Mock Factory, Fixture Generator, dll
-│   │   ├── logging/             #  6 templates — JSON Logger, Metrics Collector, dll
-│   │   ├── debug/               #  6 templates — Retry, Traceback Formatter, dll
-│   │   ├── terminal_ui/         #  8 templates — Progress Bar, Spinner, Table, dll
-│   │   ├── cli_advanced/        #  6 templates — Click/Typer Generator, dll
-│   │   ├── document/            #  7 templates — Summarizer, Keyword Extractor, dll
-│   │   ├── image_utils/         #  3 templates — Image Reader, Base64 Converter, dll
-│   │   ├── functional/          #  6 templates — Pipe, Compose, Maybe Monad, dll
-│   │   ├── metaprogramming/     #  8 templates — Singleton, DI Container, dll
-│   │   └── ml_helpers/          # 10 templates — Train/Test Split, ROC-AUC, dll
-│   │
-│   ├── wizard/
-│   │   └── cli.py               # Menu bertingkat (decision tree) + domain picker
-│   │
-│   └── cli_entry.py             # Entry point + search/list/domains/batch flags
-│
-├── tests/
-│   └── test_templates.py        # 10-test suite — semua template wajib valid ✅
-│
-├── examples/
-│   └── example_usage.py         # Pemakaian tanpa wizard (programatik)
-│
+├── .github/
+│   └── workflows/
+│       └── pages.yml
+├── .gitignore
+├── .nojekyll
+├── README.md
+├── build_webui.py
 ├── docs/
-│   ├── BLUEPRINT.md             # Arsitektur & prinsip desain
-│   └── CONTRIBUTING_TEMPLATES.md # Cara menambah template & domain baru
-│
-├── index.html                   # Web UI
-├── build_webui.py               # Build catalog.json dari template
-├── serve.py                     # Serve Web UI secara lokal
-│
-└── setup.py
+│   ├── BLUEPRINT.md
+│   ├── CONTRIBUTING_TEMPLATES.md
+│   └── EXPANSION_PLAN.md
+├── examples/
+│   └── example_usage.py
+├── index.html
+├── pygen/
+│   ├── __init__.py
+│   ├── cli_entry.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── compositor.py
+│   │   ├── registry.py
+│   │   ├── template_engine.py
+│   │   └── validator.py
+│   ├── templates/
+│   │   ├── algorithms/
+│   │   │   ├── _meta.json
+│   │   │   └── algorithms.json
+│   │   ├── api_client/
+│   │   │   ├── _meta.json
+│   │   │   └── api_client.json
+│   │   ├── cli/
+│   │   │   ├── _meta.json
+│   │   │   ├── argparse_scaffold.json
+│   │   │   └── subprocess.json
+│   │   ├── cli_advanced/
+│   │   │   ├── _meta.json
+│   │   │   └── cli_advanced.json
+│   │   ├── concurrency/
+│   │   │   ├── _meta.json
+│   │   │   └── concurrency.json
+│   │   ├── config_loader/
+│   │   │   ├── _meta.json
+│   │   │   └── config_loader.json
+│   │   ├── data/
+│   │   │   ├── _meta.json
+│   │   │   ├── csv_tools.json
+│   │   │   ├── file_ops.json
+│   │   │   └── json_tools.json
+│   │   ├── data_structures/
+│   │   │   ├── _meta.json
+│   │   │   └── data_structures.json
+│   │   ├── database/
+│   │   │   ├── _meta.json
+│   │   │   └── database.json
+│   │   ├── datetime_utils/
+│   │   │   ├── _meta.json
+│   │   │   └── datetime_utils.json
+│   │   ├── debug/
+│   │   │   ├── _meta.json
+│   │   │   └── debug.json
+│   │   ├── document/
+│   │   │   ├── _meta.json
+│   │   │   └── document.json
+│   │   ├── filesystem/
+│   │   │   ├── _meta.json
+│   │   │   └── filesystem.json
+│   │   ├── functional/
+│   │   │   ├── _meta.json
+│   │   │   └── functional.json
+│   │   ├── image_utils/
+│   │   │   ├── _meta.json
+│   │   │   └── image_utils.json
+│   │   ├── iter_tools/
+│   │   │   ├── _meta.json
+│   │   │   └── iter_tools.json
+│   │   ├── logging/
+│   │   │   ├── _meta.json
+│   │   │   └── logging.json
+│   │   ├── math_stats/
+│   │   │   ├── _meta.json
+│   │   │   └── math_stats.json
+│   │   ├── metaprogramming/
+│   │   │   ├── _meta.json
+│   │   │   └── metaprogramming.json
+│   │   ├── ml_helpers/
+│   │   │   ├── _meta.json
+│   │   │   └── ml_helpers.json
+│   │   ├── networking/
+│   │   │   ├── _meta.json
+│   │   │   └── networking.json
+│   │   ├── os_system/
+│   │   │   ├── _meta.json
+│   │   │   └── os_system.json
+│   │   ├── performance/
+│   │   │   ├── _meta.json
+│   │   │   └── performance.json
+│   │   ├── prompt_eng/
+│   │   │   ├── _meta.json
+│   │   │   ├── api_connection.json
+│   │   │   ├── embeddings.json
+│   │   │   ├── error_handling.json
+│   │   │   ├── evaluation.json
+│   │   │   ├── iteration_testing.json
+│   │   │   ├── output_handling.json
+│   │   │   ├── prompt_chaining.json
+│   │   │   ├── prompt_construction.json
+│   │   │   ├── streaming_responses.json
+│   │   │   └── utilities.json
+│   │   ├── security/
+│   │   │   ├── _meta.json
+│   │   │   └── security.json
+│   │   ├── serialization/
+│   │   │   ├── _meta.json
+│   │   │   └── serialization.json
+│   │   ├── string_tools/
+│   │   │   ├── _meta.json
+│   │   │   └── string_tools.json
+│   │   ├── terminal_ui/
+│   │   │   ├── _meta.json
+│   │   │   └── terminal_ui.json
+│   │   ├── testing/
+│   │   │   ├── _meta.json
+│   │   │   └── testing.json
+│   │   ├── web/
+│   │   │   ├── _meta.json
+│   │   │   ├── http_client.json
+│   │   │   └── scraping.json
+│   │   └── web_frameworks/
+│   │       ├── _meta.json
+│   │       └── web_frameworks.json
+│   ├── webui/
+│   │   └── catalog.json
+│   └── wizard/
+│       ├── __init__.py
+│       └── cli.py
+├── requirements.txt
+├── serve.py
+├── setup.py
+└── tests/
+    ├── __init__.py
+    └── test_templates.py
+
 ```
 
 ## 🎯 Field Types Lengkap
