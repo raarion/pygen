@@ -1,0 +1,138 @@
+{
+  "category": "serialization",
+  "label": "Serialization",
+  "templates": [
+    {
+      "id": "pickle_safe",
+      "title": "Safe Pickle — load/dump dengan verifikasi hash",
+      "description": "Pickle dengan hash SHA256 anti-tamper. Serialize + integrity check.",
+      "imports": ["pickle", "hashlib", "os"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi_dump", "label": "Nama fungsi dump", "type": "identifier", "default": "safe_pickle_dump"},
+        {"name": "nama_fungsi_load", "label": "Nama fungsi load", "type": "identifier", "default": "safe_pickle_load"}
+      ],
+      "code": "def {{nama_fungsi_dump}}(data, filepath):\n    \"\"\"Pickle data to file with SHA256 integrity hash.\n    File format: [4 bytes hash length][hash bytes][pickled data]\n    \"\"\"\n    pickled = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)\n    digest = hashlib.sha256(pickled).digest()\n    hash_len = len(digest).to_bytes(4, 'big')\n    with open(filepath, 'wb') as f:\n        f.write(hash_len)\n        f.write(digest)\n        f.write(pickled)\n\n\ndef {{nama_fungsi_load}}(filepath):\n    \"\"\"Load pickled data with integrity verification.\n    Raises ValueError if file is tampered or corrupted.\n    \"\"\"\n    with open(filepath, 'rb') as f:\n        hash_len_bytes = f.read(4)\n        if len(hash_len_bytes) < 4:\n            raise ValueError('File corrupted: missing hash length')\n        hash_len = int.from_bytes(hash_len_bytes, 'big')\n        stored_hash = f.read(hash_len)\n        pickled = f.read()\n    computed_hash = hashlib.sha256(pickled).digest()\n    if computed_hash != stored_hash:\n        raise ValueError('Pickle integrity check failed — file may be tampered')\n    return pickle.loads(pickled)\n",
+      "sample_values": {
+        "nama_fungsi_dump": "safe_pickle_dump",
+        "nama_fungsi_load": "safe_pickle_load"
+      }
+    },
+    {
+      "id": "base64_tool",
+      "title": "Base64 Encode/Decode — string & file",
+      "description": "Encode/decode base64 untuk string dan file. Support URL-safe variant.",
+      "imports": ["base64"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi_enc", "label": "Nama fungsi encode", "type": "identifier", "default": "b64_encode"},
+        {"name": "nama_fungsi_dec", "label": "Nama fungsi decode", "type": "identifier", "default": "b64_decode"},
+        {"name": "nama_fungsi_file_enc", "label": "Nama fungsi file encode", "type": "identifier", "default": "b64_encode_file"},
+        {"name": "nama_fungsi_file_dec", "label": "Nama fungsi file decode", "type": "identifier", "default": "b64_decode_file"}
+      ],
+      "code": "def {{nama_fungsi_enc}}(text, url_safe=False):\n    \"\"\"Encode string to base64. Returns string.\"\"\"\n    data = text.encode('utf-8') if isinstance(text, str) else text\n    if url_safe:\n        return base64.urlsafe_b64encode(data).decode('ascii')\n    return base64.b64encode(data).decode('ascii')\n\n\ndef {{nama_fungsi_dec}}(encoded, url_safe=False):\n    \"\"\"Decode base64 string. Returns string.\"\"\"\n    data = encoded.encode('ascii') if isinstance(encoded, str) else encoded\n    if url_safe:\n        return base64.urlsafe_b64decode(data).decode('utf-8')\n    return base64.b64decode(data).decode('utf-8')\n\n\ndef {{nama_fungsi_file_enc}}(input_path, output_path, url_safe=False):\n    \"\"\"Encode file to base64 and write to output file.\"\"\"\n    with open(input_path, 'rb') as f:\n        data = f.read()\n    if url_safe:\n        encoded = base64.urlsafe_b64encode(data)\n    else:\n        encoded = base64.b64encode(data)\n    with open(output_path, 'wb') as f:\n        f.write(encoded)\n    return len(encoded)\n\n\ndef {{nama_fungsi_file_dec}}(input_path, output_path, url_safe=False):\n    \"\"\"Decode base64 file to original binary.\"\"\"\n    with open(input_path, 'rb') as f:\n        data = f.read()\n    if url_safe:\n        decoded = base64.urlsafe_b64decode(data)\n    else:\n        decoded = base64.b64decode(data)\n    with open(output_path, 'wb') as f:\n        f.write(decoded)\n    return len(decoded)\n",
+      "sample_values": {
+        "nama_fungsi_enc": "b64_encode",
+        "nama_fungsi_dec": "b64_decode",
+        "nama_fungsi_file_enc": "b64_encode_file",
+        "nama_fungsi_file_dec": "b64_decode_file"
+      }
+    },
+    {
+      "id": "binary_reader",
+      "title": "Binary Struct Reader",
+      "description": "Baca file binary dengan struct format string. Parse header, fields, arrays.",
+      "imports": ["struct"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "BinaryReader"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Read binary files using struct format strings.\n    Format codes: 'i'=int32, 'I'=uint32, 'h'=int16, 'f'=float32, 'd'=float64,\n                  'B'=uint8, 's'=char, etc. Prefix with '<' for little-endian, '>' for big-endian.\n    \"\"\"\n    def __init__(self, filepath, default_endian='<'):\n        self.filepath = filepath\n        self.default_endian = default_endian\n\n    def read_struct(self, fmt, offset=0):\n        \"\"\"Read struct at offset. fmt like '<3i2f' (3 ints, 2 floats).\"\"\"\n        full_fmt = fmt if fmt[0] in '<>@!' else self.default_endian + fmt\n        size = struct.calcsize(full_fmt)\n        with open(self.filepath, 'rb') as f:\n            f.seek(offset)\n            data = f.read(size)\n        if len(data) < size:\n            raise ValueError('Not enough data: expected ' + str(size) + ' bytes, got ' + str(len(data)))\n        return struct.unpack(full_fmt, data)\n\n    def read_array(self, item_fmt, count, offset=0):\n        \"\"\"Read array of count items.\"\"\"\n        full_fmt = item_fmt if item_fmt[0] in '<>@!' else self.default_endian + item_fmt\n        item_size = struct.calcsize(full_fmt)\n        results = []\n        with open(self.filepath, 'rb') as f:\n            f.seek(offset)\n            for _ in range(count):\n                data = f.read(item_size)\n                if len(data) < item_size:\n                    break\n                results.append(struct.unpack(full_fmt, data))\n        return results\n\n    def read_string(self, offset, length):\n        \"\"\"Read fixed-length string at offset.\"\"\"\n        with open(self.filepath, 'rb') as f:\n            f.seek(offset)\n            data = f.read(length)\n        return data.rstrip(b'\\x00').decode('utf-8', errors='replace')\n\n    def file_size(self):\n        \"\"\"Get file size in bytes.\"\"\"\n        import os\n        return os.path.getsize(self.filepath)\n",
+      "sample_values": {
+        "nama_class": "BinaryReader"
+      }
+    },
+    {
+      "id": "msgpack_lite",
+      "title": "MessagePack-lite — encode/decode sederhana",
+      "description": "Binary serialization sederhana tanpa library eksternal. Support int, str, bool, None, list, dict.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi_enc", "label": "Nama fungsi encode", "type": "identifier", "default": "msgpack_encode"},
+        {"name": "nama_fungsi_dec", "label": "Nama fungsi decode", "type": "identifier", "default": "msgpack_decode"}
+      ],
+      "code": "def {{nama_fungsi_enc}}(obj):\n    \"\"\"Encode Python object to bytes. Supports: None, bool, int, float, str, list, dict.\n    Format: [type_byte][payload]. NOT compatible with real MessagePack spec — simplified version.\n    \"\"\"\n    if obj is None:\n        return b'\\xc0'\n    if isinstance(obj, bool):\n        return b'\\xc3' if obj else b'\\xc2'\n    if isinstance(obj, int):\n        if -128 <= obj <= 127:\n            return b'\\xd0' + obj.to_bytes(1, 'big', signed=True)\n        if -32768 <= obj <= 32767:\n            return b'\\xd1' + obj.to_bytes(2, 'big', signed=True)\n        return b'\\xd2' + obj.to_bytes(4, 'big', signed=True)\n    if isinstance(obj, float):\n        import struct\n        return b'\\xcb' + struct.pack('>d', obj)\n    if isinstance(obj, str):\n        encoded = obj.encode('utf-8')\n        length = len(encoded)\n        if length < 32:\n            return bytes([0xa0 | length]) + encoded\n        return b'\\xd9' + length.to_bytes(1, 'big') + encoded\n    if isinstance(obj, (list, tuple)):\n        items = b''.join({{nama_fungsi_enc}}(item) for item in obj)\n        length = len(obj)\n        if length < 16:\n            return bytes([0x90 | length]) + items\n        return b'\\xdc' + length.to_bytes(2, 'big') + items\n    if isinstance(obj, dict):\n        pairs = b''\n        for k, v in obj.items():\n            pairs += {{nama_fungsi_enc}}(k) + {{nama_fungsi_enc}}(v)\n        length = len(obj)\n        if length < 16:\n            return bytes([0x80 | length]) + pairs\n        return b'\\xde' + length.to_bytes(2, 'big') + pairs\n    raise TypeError('Unsupported type: ' + type(obj).__name__)\n\n\ndef {{nama_fungsi_dec}}(data):\n    \"\"\"Decode bytes produced by {{nama_fungsi_enc}}. Returns (value, bytes_consumed).\"\"\"\n    if isinstance(data, (bytes, bytearray)):\n        result, _ = _msgpack_decode_at(data, 0)\n        return result\n    raise TypeError('Expected bytes, got ' + type(data).__name__)\n\n\ndef _msgpack_decode_at(data, pos):\n    b = data[pos]\n    if b == 0xc0:\n        return None, pos + 1\n    if b == 0xc2:\n        return False, pos + 1\n    if b == 0xc3:\n        return True, pos + 1\n    if b == 0xd0:\n        return int.from_bytes(data[pos+1:pos+2], 'big', signed=True), pos + 2\n    if b == 0xd1:\n        return int.from_bytes(data[pos+1:pos+3], 'big', signed=True), pos + 3\n    if b == 0xd2:\n        return int.from_bytes(data[pos+1:pos+5], 'big', signed=True), pos + 5\n    if b == 0xcb:\n        import struct\n        return struct.unpack('>d', data[pos+1:pos+9])[0], pos + 9\n    if 0xa0 <= b <= 0xbf:\n        length = b & 0x1f\n        return data[pos+1:pos+1+length].decode('utf-8'), pos + 1 + length\n    if b == 0xd9:\n        length = data[pos+1]\n        return data[pos+2:pos+2+length].decode('utf-8'), pos + 2 + length\n    if 0x90 <= b <= 0x9f:\n        count = b & 0x0f\n        pos += 1\n        items = []\n        for _ in range(count):\n            item, pos = _msgpack_decode_at(data, pos)\n            items.append(item)\n        return items, pos\n    if b == 0xdc:\n        count = int.from_bytes(data[pos+1:pos+3], 'big')\n        pos += 3\n        items = []\n        for _ in range(count):\n            item, pos = _msgpack_decode_at(data, pos)\n            items.append(item)\n        return items, pos\n    if 0x80 <= b <= 0x8f:\n        count = b & 0x0f\n        pos += 1\n        d = {}\n        for _ in range(count):\n            k, pos = _msgpack_decode_at(data, pos)\n            v, pos = _msgpack_decode_at(data, pos)\n            d[k] = v\n        return d, pos\n    if b == 0xde:\n        count = int.from_bytes(data[pos+1:pos+3], 'big')\n        pos += 3\n        d = {}\n        for _ in range(count):\n            k, pos = _msgpack_decode_at(data, pos)\n            v, pos = _msgpack_decode_at(data, pos)\n            d[k] = v\n        return d, pos\n    raise ValueError('Unknown msgpack byte: 0x' + hex(b))\n",
+      "sample_values": {
+        "nama_fungsi_enc": "msgpack_encode",
+        "nama_fungsi_dec": "msgpack_decode"
+      }
+    },
+    {
+      "id": "xml_to_dict",
+      "title": "XML → Dict Converter",
+      "description": "Parse XML ke nested dict. stdlib xml.etree.ElementTree. Handle atribut & text.",
+      "imports": ["xml.etree.ElementTree"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "xml_to_dict"},
+        {"name": "attr_prefix", "label": "Prefix untuk atribut", "type": "text", "default": "@"},
+        {"name": "text_key", "label": "Key untuk text content", "type": "text", "default": "#text"}
+      ],
+      "code": "def {{nama_fungsi}}(xml_input, attr_prefix='{{attr_prefix}}', text_key='{{text_key}}'):\n    \"\"\"Convert XML string or file path to nested dict.\n    Attributes prefixed with attr_prefix (default '@').\n    Text content stored under text_key (default '#text').\n    Repeated tags become lists.\n    \"\"\"\n    if isinstance(xml_input, str) and not xml_input.strip().startswith('<'):\n        tree = xml.etree.ElementTree.parse(xml_input)\n        root = tree.getroot()\n    else:\n        root = xml.etree.ElementTree.fromstring(xml_input)\n    return _element_to_dict(root, attr_prefix, text_key)\n\n\ndef _element_to_dict(elem, attr_prefix, text_key):\n    result = {}\n    for attr_name, attr_val in elem.attrib.items():\n        result[attr_prefix + attr_name] = attr_val\n    children = list(elem)\n    if not children:\n        text = (elem.text or '').strip()\n        if result:\n            if text:\n                result[text_key] = text\n        else:\n            return text if text else None\n    else:\n        for child in children:\n            child_dict = _element_to_dict(child, attr_prefix, text_key)\n            tag = child.tag\n            if tag in result:\n                existing = result[tag]\n                if isinstance(existing, list):\n                    existing.append(child_dict)\n                else:\n                    result[tag] = [existing, child_dict]\n            else:\n                result[tag] = child_dict\n        text = (elem.text or '').strip()\n        if text:\n            result[text_key] = text\n    return result\n",
+      "sample_values": {
+        "nama_fungsi": "xml_to_dict",
+        "attr_prefix": "@",
+        "text_key": "#text"
+      }
+    },
+    {
+      "id": "dict_to_xml",
+      "title": "Dict → XML Converter",
+      "description": "Build XML string dari nested dict. Kebalikan dari xml_to_dict.",
+      "imports": ["xml.etree.ElementTree"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "dict_to_xml"},
+        {"name": "attr_prefix", "label": "Prefix untuk atribut", "type": "text", "default": "@"},
+        {"name": "text_key", "label": "Key untuk text content", "type": "text", "default": "#text"}
+      ],
+      "code": "def {{nama_fungsi}}(data, root_tag='root', attr_prefix='{{attr_prefix}}', text_key='{{text_key}}'):\n    \"\"\"Convert nested dict to XML string.\n    Keys starting with attr_prefix become attributes.\n    Key matching text_key becomes element text.\n    List values create repeated elements.\n    \"\"\"\n    root = _build_element(root_tag, data, attr_prefix, text_key)\n    return xml.etree.ElementTree.tostring(root, encoding='unicode', xml_declaration=False)\n\n\ndef _build_element(tag, data, attr_prefix, text_key):\n    import xml.etree.ElementTree as ET\n    elem = ET.Element(tag)\n    if isinstance(data, dict):\n        for key, value in data.items():\n            if key.startswith(attr_prefix):\n                attr_name = key[len(attr_prefix):]\n                elem.set(attr_name, str(value))\n            elif key == text_key:\n                elem.text = str(value)\n            elif isinstance(value, list):\n                for item in value:\n                    child = _build_element(key, item, attr_prefix, text_key)\n                    elem.append(child)\n            elif isinstance(value, dict):\n                child = _build_element(key, value, attr_prefix, text_key)\n                elem.append(child)\n            else:\n                child = ET.Element(key)\n                child.text = str(value) if value is not None else ''\n                elem.append(child)\n    elif data is not None:\n        elem.text = str(data)\n    return elem\n",
+      "sample_values": {
+        "nama_fungsi": "dict_to_xml",
+        "attr_prefix": "@",
+        "text_key": "#text"
+      }
+    },
+    {
+      "id": "csv_dialect_detector",
+      "title": "CSV Dialect Auto-Detector",
+      "description": "Deteksi delimiter, quotechar, dan dialect CSV secara otomatis dari sample baris.",
+      "imports": ["csv"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "detect_csv_dialect"},
+        {"name": "sample_lines", "label": "Jumlah baris sample", "type": "int", "default": 10}
+      ],
+      "code": "def {{nama_fungsi}}(filepath_or_text, sample_lines={{sample_lines}}):\n    \"\"\"Auto-detect CSV dialect (delimiter, quotechar, etc).\n    Accepts file path or raw text string.\n    Returns dict with dialect info: delimiter, quotechar, has_header, sample.\n    \"\"\"\n    if hasattr(filepath_or_text, 'read'):\n        text = filepath_or_text.read()\n    elif isinstance(filepath_or_text, str) and '\\n' in filepath_or_text:\n        text = filepath_or_text\n    else:\n        with open(filepath_or_text, 'r', encoding='utf-8') as f:\n            text = f.read()\n    lines = text.splitlines()[:sample_lines]\n    sample = '\\n'.join(lines)\n    try:\n        dialect = csv.Sniffer().sniff(sample, delimiters=',;\\t|')\n        has_header = csv.Sniffer().has_header(sample)\n    except csv.Error:\n        dialect = csv.excel\n        has_header = True\n    return {\n        'delimiter': dialect.delimiter,\n        'quotechar': dialect.quotechar,\n        'doublequote': dialect.doublequote,\n        'skipinitialspace': dialect.skipinitialspace,\n        'has_header': has_header,\n        'sample': lines[0] if lines else '',\n        'column_count': len(lines[0].split(dialect.delimiter)) if lines else 0,\n    }\n",
+      "sample_values": {
+        "nama_fungsi": "detect_csv_dialect",
+        "sample_lines": 10
+      }
+    },
+    {
+      "id": "line_protocol",
+      "title": "Line Protocol — NDJSON / JSONL Reader-Writer",
+      "description": "Baca/tulis file JSON per baris (Newline Delimited JSON). Streaming-friendly.",
+      "imports": ["json"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "LineProtocol"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Newline Delimited JSON (NDJSON/JSONL) reader and writer.\n    Each line is a separate JSON object. Streaming-friendly.\n    \"\"\"\n    def __init__(self, filepath, mode='r', encoding='utf-8'):\n        self.filepath = filepath\n        self.mode = mode\n        self.encoding = encoding\n        self._file = None\n\n    def __enter__(self):\n        self._file = open(self.filepath, self.mode, encoding=self.encoding)\n        return self\n\n    def __exit__(self, *exc):\n        if self._file:\n            self._file.close()\n\n    def read_all(self):\n        \"\"\"Read all lines, parse each as JSON. Returns list of objects.\"\"\"\n        results = []\n        with open(self.filepath, 'r', encoding=self.encoding) as f:\n            for line in f:\n                line = line.strip()\n                if line:\n                    results.append(json.loads(line))\n        return results\n\n    def read_stream(self):\n        \"\"\"Yield parsed JSON objects one by one (generator).\"\"\"\n        with open(self.filepath, 'r', encoding=self.encoding) as f:\n            for line in f:\n                line = line.strip()\n                if line:\n                    yield json.loads(line)\n\n    def write_all(self, items):\n        \"\"\"Write list of objects as NDJSON.\"\"\"\n        with open(self.filepath, 'w', encoding=self.encoding) as f:\n            for item in items:\n                f.write(json.dumps(item, ensure_ascii=False) + '\\n')\n\n    def append(self, item):\n        \"\"\"Append one JSON object as a new line.\"\"\"\n        with open(self.filepath, 'a', encoding=self.encoding) as f:\n            f.write(json.dumps(item, ensure_ascii=False) + '\\n')\n\n    @staticmethod\n    def count_lines(filepath, encoding='utf-8'):\n        \"\"\"Count number of non-empty lines.\"\"\"\n        count = 0\n        with open(filepath, 'r', encoding=encoding) as f:\n            for line in f:\n                if line.strip():\n                    count += 1\n        return count\n",
+      "sample_values": {
+        "nama_class": "LineProtocol"
+      }
+    }
+  ]
+}

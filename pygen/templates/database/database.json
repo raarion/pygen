@@ -1,0 +1,130 @@
+{
+  "category": "database",
+  "label": "Database",
+  "templates": [
+    {
+      "id": "sqlite_crud_factory",
+      "title": "SQLite CRUD Factory — generate class CRUD",
+      "description": "Factory function yang generate class CRUD untuk tabel tertentu. Auto create/read/update/delete.",
+      "imports": ["sqlite3"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi factory", "type": "identifier", "default": "make_crud"},
+        {"name": "nama_class", "label": "Nama class default", "type": "identifier", "default": "CrudDB"}
+      ],
+      "code": "def {{nama_fungsi}}(db_path, table_name, class_name='{{nama_class}}'):\n    \"\"\"Factory that generates a CRUD class for the given table.\n    Returns a class with create/read/update/delete methods.\n    \"\"\"\n    class CrudClass:\n        def __init__(self):\n            self.db_path = db_path\n            self.table = table_name\n\n        def _conn(self):\n            return sqlite3.connect(self.db_path)\n\n        def create(self, data):\n            \"\"\"Insert a row. data = dict of column:value.\"\"\"\n            cols = ', '.join(data.keys())\n            placeholders = ', '.join(['?'] * len(data))\n            sql = 'INSERT INTO ' + self.table + ' (' + cols + ') VALUES (' + placeholders + ')'\n            with self._conn() as conn:\n                cur = conn.execute(sql, list(data.values()))\n                return cur.lastrowid\n\n        def read(self, id_col='id', id_val=None):\n            \"\"\"Read one row by id, or all rows if id_val is None.\"\"\"\n            with self._conn() as conn:\n                conn.row_factory = sqlite3.Row\n                if id_val is not None:\n                    cur = conn.execute('SELECT * FROM ' + self.table + ' WHERE ' + id_col + ' = ?', (id_val,))\n                    row = cur.fetchone()\n                    return dict(row) if row else None\n                cur = conn.execute('SELECT * FROM ' + self.table)\n                return [dict(r) for r in cur.fetchall()]\n\n        def update(self, id_val, data, id_col='id'):\n            \"\"\"Update row by id. data = dict of column:value.\"\"\"\n            set_clause = ', '.join(k + ' = ?' for k in data.keys())\n            sql = 'UPDATE ' + self.table + ' SET ' + set_clause + ' WHERE ' + id_col + ' = ?'\n            with self._conn() as conn:\n                conn.execute(sql, list(data.values()) + [id_val])\n\n        def delete(self, id_val, id_col='id'):\n            \"\"\"Delete row by id.\"\"\"\n            with self._conn() as conn:\n                conn.execute('DELETE FROM ' + self.table + ' WHERE ' + id_col + ' = ?', (id_val,))\n\n    CrudClass.__name__ = class_name\n    CrudClass.__qualname__ = class_name\n    return CrudClass()\n",
+      "sample_values": {
+        "nama_fungsi": "make_crud",
+        "nama_class": "CrudDB"
+      }
+    },
+    {
+      "id": "sqlite_schema_from_dict",
+      "title": "Schema dari dict — auto CREATE TABLE",
+      "description": "Generate SQL CREATE TABLE dari dict definisi kolom. Support type mapping Python→SQLite.",
+      "imports": ["sqlite3"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "create_table_from_dict"},
+        {"name": "id_column", "label": "Nama kolom ID", "type": "identifier", "default": "id"}
+      ],
+      "code": "def {{nama_fungsi}}(db_path, table_name, columns):\n    \"\"\"Create a SQLite table from a dict definition.\n    columns: {'name': 'text', 'age': 'integer', 'score': 'real'}\n    Type mapping: str→TEXT, int→INTEGER, float→REAL, bool→INTEGER\n    Also accepts raw SQLite types: 'text', 'integer', 'real', 'blob'.\n    \"\"\"\n    type_map = {'str': 'TEXT', 'int': 'INTEGER', 'float': 'REAL', 'bool': 'INTEGER',\n                'text': 'TEXT', 'integer': 'INTEGER', 'real': 'REAL', 'blob': 'BLOB'}\n    col_defs = ['{{id_column}} INTEGER PRIMARY KEY AUTOINCREMENT']\n    for col_name, col_type in columns.items():\n        sqlite_type = type_map.get(col_type.lower(), col_type.upper())\n        col_defs.append(col_name + ' ' + sqlite_type)\n    sql = 'CREATE TABLE IF NOT EXISTS ' + table_name + ' (' + ', '.join(col_defs) + ')'\n    with sqlite3.connect(db_path) as conn:\n        conn.execute(sql)\n    return sql\n",
+      "sample_values": {
+        "nama_fungsi": "create_table_from_dict",
+        "id_column": "id"
+      }
+    },
+    {
+      "id": "sqlite_connection_pool",
+      "title": "SQLite Connection Pool",
+      "description": "Thread-safe connection pool untuk SQLite. Reuse koneksi, batasi jumlah.",
+      "imports": ["sqlite3", "threading", "queue"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "SQLitePool"},
+        {"name": "pool_size", "label": "Ukuran pool", "type": "int", "default": 5}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Thread-safe SQLite connection pool.\"\"\"\n    def __init__(self, db_path, pool_size={{pool_size}}):\n        self.db_path = db_path\n        self.pool_size = pool_size\n        self._pool = queue.Queue(maxsize=pool_size)\n        self._lock = threading.Lock()\n        self._created = 0\n        for _ in range(pool_size):\n            self._pool.put_nowait(self._new_conn())\n\n    def _new_conn(self):\n        conn = sqlite3.connect(self.db_path, check_same_thread=False)\n        conn.row_factory = sqlite3.Row\n        return conn\n\n    def get_connection(self, timeout=5):\n        \"\"\"Get a connection from pool. Blocks up to timeout seconds.\"\"\"\n        return self._pool.get(timeout=timeout)\n\n    def return_connection(self, conn):\n        \"\"\"Return a connection back to the pool.\"\"\"\n        self._pool.put_nowait(conn)\n\n    def execute(self, sql, params=None):\n        \"\"\"Convenience: get conn, execute, return conn, return result.\"\"\"\n        conn = self.get_connection()\n        try:\n            if params:\n                cur = conn.execute(sql, params)\n            else:\n                cur = conn.execute(sql)\n            conn.commit()\n            return cur\n        finally:\n            self.return_connection(conn)\n\n    def close_all(self):\n        \"\"\"Close all connections in pool.\"\"\"\n        while not self._pool.empty():\n            conn = self._pool.get_nowait()\n            conn.close()\n",
+      "sample_values": {
+        "nama_class": "SQLitePool",
+        "pool_size": 5
+      }
+    },
+    {
+      "id": "csv_to_sqlite",
+      "title": "CSV → SQLite Importer",
+      "description": "Baca file CSV, auto-create table, bulk insert ke SQLite. Deteksi tipe kolom otomatis.",
+      "imports": ["csv", "sqlite3"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "csv_to_sqlite"},
+        {"name": "table_name", "label": "Nama tabel default", "type": "identifier", "default": "data"}
+      ],
+      "code": "def {{nama_fungsi}}(csv_path, db_path, table_name='{{table_name}}', delimiter=','):\n    \"\"\"Import CSV file into SQLite table. Auto-creates table with detected types.\n    Returns number of rows imported.\n    \"\"\"\n    with open(csv_path, 'r', encoding='utf-8') as f:\n        reader = csv.DictReader(f, delimiter=delimiter)\n        rows = list(reader)\n    if not rows:\n        return 0\n    columns = list(rows[0].keys())\n    col_types = {}\n    for col in columns:\n        values = [r[col] for r in rows if r[col]]\n        if all(_is_int(v) for v in values):\n            col_types[col] = 'INTEGER'\n        elif all(_is_float(v) for v in values):\n            col_types[col] = 'REAL'\n        else:\n            col_types[col] = 'TEXT'\n    col_defs = ['id INTEGER PRIMARY KEY AUTOINCREMENT']\n    for col in columns:\n        col_defs.append(col + ' ' + col_types[col])\n    with sqlite3.connect(db_path) as conn:\n        conn.execute('CREATE TABLE IF NOT EXISTS ' + table_name + ' (' + ', '.join(col_defs) + ')')\n        placeholders = ', '.join(['?'] * len(columns))\n        sql = 'INSERT INTO ' + table_name + ' (' + ', '.join(columns) + ') VALUES (' + placeholders + ')'\n        for row in rows:\n            values = [_convert_value(row[c], col_types[c]) for c in columns]\n            conn.execute(sql, values)\n        conn.commit()\n    return len(rows)\n\n\ndef _is_int(s):\n    try:\n        int(s)\n        return True\n    except (ValueError, TypeError):\n        return False\n\n\ndef _is_float(s):\n    try:\n        float(s)\n        return True\n    except (ValueError, TypeError):\n        return False\n\n\ndef _convert_value(val, col_type):\n    if val == '' or val is None:\n        return None\n    if col_type == 'INTEGER':\n        return int(val)\n    if col_type == 'REAL':\n        return float(val)\n    return val\n",
+      "sample_values": {
+        "nama_fungsi": "csv_to_sqlite",
+        "table_name": "data"
+      }
+    },
+    {
+      "id": "sqlite_query_builder",
+      "title": "Simple Query Builder",
+      "description": "Method chaining query builder: .select().where().order_by(). Simple tapi powerful.",
+      "imports": ["sqlite3"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "QueryBuilder"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Fluent query builder for SQLite. Method chaining.\"\"\"\n    def __init__(self, db_path, table):\n        self.db_path = db_path\n        self.table = table\n        self._select_cols = '*'\n        self._where_clauses = []\n        self._params = []\n        self._order = ''\n        self._limit = ''\n        self._offset = ''\n\n    def select(self, *columns):\n        self._select_cols = ', '.join(columns) if columns else '*'\n        return self\n\n    def where(self, condition, *params):\n        self._where_clauses.append(condition)\n        self._params.extend(params)\n        return self\n\n    def order_by(self, column, direction='ASC'):\n        self._order = ' ORDER BY ' + column + ' ' + direction.upper()\n        return self\n\n    def limit(self, n, offset=0):\n        self._limit = ' LIMIT ' + str(n)\n        if offset:\n            self._offset = ' OFFSET ' + str(offset)\n        return self\n\n    def build(self):\n        sql = 'SELECT ' + self._select_cols + ' FROM ' + self.table\n        if self._where_clauses:\n            sql += ' WHERE ' + ' AND '.join(self._where_clauses)\n        sql += self._order + self._limit + self._offset\n        return sql, self._params\n\n    def execute(self):\n        sql, params = self.build()\n        with sqlite3.connect(self.db_path) as conn:\n            conn.row_factory = sqlite3.Row\n            cur = conn.execute(sql, params)\n            return [dict(row) for row in cur.fetchall()]\n\n    def count(self):\n        old_select = self._select_cols\n        self._select_cols = 'COUNT(*) as cnt'\n        sql, params = self.build()\n        self._select_cols = old_select\n        with sqlite3.connect(self.db_path) as conn:\n            cur = conn.execute(sql, params)\n            return cur.fetchone()[0]\n",
+      "sample_values": {
+        "nama_class": "QueryBuilder"
+      }
+    },
+    {
+      "id": "db_migration_runner",
+      "title": "Database Migration Runner",
+      "description": "Jalankan file SQL bermigrasi per versi. Track versi di tabel _migrations. Idempotent.",
+      "imports": ["sqlite3", "os", "glob"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "MigrationRunner"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Run SQL migrations from a directory. Tracks applied versions.\"\"\"\n    def __init__(self, db_path, migrations_dir):\n        self.db_path = db_path\n        self.migrations_dir = migrations_dir\n        self._init_migration_table()\n\n    def _init_migration_table(self):\n        with sqlite3.connect(self.db_path) as conn:\n            conn.execute('''CREATE TABLE IF NOT EXISTS _migrations (\n                version TEXT PRIMARY KEY,\n                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                filename TEXT\n            )''')\n            conn.commit()\n\n    def _applied_versions(self):\n        with sqlite3.connect(self.db_path) as conn:\n            cur = conn.execute('SELECT version FROM _migrations ORDER BY version')\n            return set(row[0] for row in cur.fetchall())\n\n    def _discover_migrations(self):\n        pattern = os.path.join(self.migrations_dir, '*.sql')\n        files = sorted(glob.glob(pattern))\n        migrations = []\n        for f in files:\n            basename = os.path.basename(f)\n            version = os.path.splitext(basename)[0]\n            migrations.append((version, basename, f))\n        return migrations\n\n    def run(self):\n        \"\"\"Run all unapplied migrations. Returns list of applied versions.\"\"\"\n        applied = self._applied_versions()\n        migrations = self._discover_migrations()\n        newly_applied = []\n        for version, filename, filepath in migrations:\n            if version in applied:\n                continue\n            with open(filepath, 'r', encoding='utf-8') as f:\n                sql = f.read()\n            with sqlite3.connect(self.db_path) as conn:\n                conn.executescript(sql)\n                conn.execute('INSERT INTO _migrations (version, filename) VALUES (?, ?)',\n                             (version, filename))\n                conn.commit()\n            newly_applied.append(version)\n        return newly_applied\n\n    def status(self):\n        \"\"\"Return dict of {version: applied_bool} for all migrations.\"\"\"\n        applied = self._applied_versions()\n        result = {}\n        for version, _, _ in self._discover_migrations():\n            result[version] = version in applied\n        return result\n",
+      "sample_values": {
+        "nama_class": "MigrationRunner"
+      }
+    },
+    {
+      "id": "sqlite_backup",
+      "title": "SQLite Backup Helper",
+      "description": "Backup database SQLite ke file lain. Live backup tanpa lock database utama.",
+      "imports": ["sqlite3", "shutil", "os", "datetime"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "backup_database"},
+        {"name": "suffix_format", "label": "Format timestamp suffix", "type": "text", "default": "%Y%m%d_%H%M%S"}
+      ],
+      "code": "def {{nama_fungsi}}(db_path, backup_dir=None, suffix='{{suffix_format}}'):\n    \"\"\"Backup SQLite database to a new file. Returns backup file path.\n    Uses sqlite3 backup API for safe live backup.\n    If backup_dir is None, creates backup alongside original file.\n    \"\"\"\n    if backup_dir is None:\n        backup_dir = os.path.dirname(db_path) or '.'\n    os.makedirs(backup_dir, exist_ok=True)\n    timestamp = datetime.datetime.now().strftime(suffix)\n    base = os.path.splitext(os.path.basename(db_path))[0]\n    backup_path = os.path.join(backup_dir, base + '_backup_' + timestamp + '.db')\n    source = sqlite3.connect(db_path)\n    dest = sqlite3.connect(backup_path)\n    with dest:\n        source.backup(dest)\n    source.close()\n    dest.close()\n    return backup_path\n",
+      "sample_values": {
+        "nama_fungsi": "backup_database",
+        "suffix_format": "%Y%m%d_%H%M%S"
+      }
+    },
+    {
+      "id": "db_seed",
+      "title": "Database Seeder",
+      "description": "Seed tabel dengan data dummy dari list of dict. Support batch insert.",
+      "imports": ["sqlite3"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "seed_table"},
+        {"name": "batch_size", "label": "Batch size", "type": "int", "default": 100}
+      ],
+      "code": "def {{nama_fungsi}}(db_path, table_name, records, batch_size={{batch_size}}):\n    \"\"\"Seed a table with list of dict records. Batch insert for performance.\n    Returns number of rows inserted.\n    \"\"\"\n    if not records:\n        return 0\n    columns = list(records[0].keys())\n    placeholders = ', '.join(['?'] * len(columns))\n    col_names = ', '.join(columns)\n    sql = 'INSERT INTO ' + table_name + ' (' + col_names + ') VALUES (' + placeholders + ')'\n    inserted = 0\n    with sqlite3.connect(db_path) as conn:\n        batch = []\n        for record in records:\n            values = [record.get(col) for col in columns]\n            batch.append(values)\n            if len(batch) >= batch_size:\n                conn.executemany(sql, batch)\n                inserted += len(batch)\n                batch = []\n        if batch:\n            conn.executemany(sql, batch)\n            inserted += len(batch)\n        conn.commit()\n    return inserted\n",
+      "sample_values": {
+        "nama_fungsi": "seed_table",
+        "batch_size": 100
+      }
+    }
+  ]
+}

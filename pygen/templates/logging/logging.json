@@ -1,0 +1,100 @@
+{
+  "category": "logging",
+  "label": "Logging",
+  "templates": [
+    {
+      "id": "structured_logger",
+      "title": "Structured JSON Logger",
+      "description": "Log dalam format JSON, bukan plain text. Mudah di-parse oleh log aggregator (ELK, Loki, dll).",
+      "imports": ["logging", "json", "datetime", "sys"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class handler", "type": "identifier", "default": "JSONFormatter"},
+        {"name": "nama_fungsi_setup", "label": "Nama fungsi setup", "type": "identifier", "default": "setup_json_logger"}
+      ],
+      "code": "class {{nama_class}}(logging.Formatter):\n    \"\"\"Format log records as JSON lines. One JSON object per line.\"\"\"\n    def format(self, record):\n        log_entry = {\n            'timestamp': datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc).isoformat(),\n            'level': record.levelname,\n            'logger': record.name,\n            'message': record.getMessage(),\n            'module': record.module,\n            'function': record.funcName,\n            'line': record.lineno,\n        }\n        if record.exc_info and record.exc_info[0] is not None:\n            log_entry['exception'] = self.formatException(record.exc_info)\n        if hasattr(record, 'extra_data'):\n            log_entry['data'] = record.extra_data\n        return json.dumps(log_entry, ensure_ascii=False)\n\n\ndef {{nama_fungsi_setup}}(name='app', level='INFO', output='stderr'):\n    \"\"\"Setup a JSON logger. Returns logger instance.\n    output: 'stderr', 'stdout', or file path.\n    \"\"\"\n    logger = logging.getLogger(name)\n    logger.setLevel(getattr(logging, level.upper(), logging.INFO))\n    handler = logging.StreamHandler(sys.stderr if output == 'stderr' else (sys.stdout if output == 'stdout' else open(output, 'a')))\n    handler.setFormatter({{nama_class}}())\n    logger.addHandler(handler)\n    return logger\n",
+      "sample_values": {
+        "nama_class": "JSONFormatter",
+        "nama_fungsi_setup": "setup_json_logger"
+      }
+    },
+    {
+      "id": "log_rotator",
+      "title": "Log Rotation Setup Helper",
+      "description": "Setup RotatingFileHandler + TimedRotatingFileHandler dengan satu fungsi.",
+      "imports": ["logging", "os"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "setup_log_rotation"},
+        {"name": "default_max_bytes", "label": "Default max bytes", "type": "int", "default": 10485760},
+        {"name": "default_backup_count", "label": "Default backup count", "type": "int", "default": 5}
+      ],
+      "code": "def {{nama_fungsi}}(log_file, level='INFO', max_bytes={{default_max_bytes}}, backup_count={{default_backup_count}}, mode='size', when='midnight'):\n    \"\"\"Setup rotating file logger.\n    mode='size': RotatingFileHandler (by file size).\n    mode='time': TimedRotatingFileHandler (by time: S/M/H/D/midnight).\n    Returns configured logger.\n    \"\"\"\n    logger = logging.getLogger(os.path.splitext(os.path.basename(log_file))[0])\n    logger.setLevel(getattr(logging, level.upper(), logging.INFO))\n    os.makedirs(os.path.dirname(log_file) or '.', exist_ok=True)\n    if mode == 'time':\n        from logging.handlers import TimedRotatingFileHandler\n        handler = TimedRotatingFileHandler(log_file, when=when, backupCount=backup_count)\n    else:\n        from logging.handlers import RotatingFileHandler\n        handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)\n    formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')\n    handler.setFormatter(formatter)\n    logger.addHandler(handler)\n    return logger\n",
+      "sample_values": {
+        "nama_fungsi": "setup_log_rotation",
+        "default_max_bytes": 10485760,
+        "default_backup_count": 5
+      }
+    },
+    {
+      "id": "context_logger",
+      "title": "Context-Aware Logger — with correlation ID",
+      "description": "Logger yang attach correlation ID / request ID ke setiap log entry. Berguna untuk tracing di distributed systems.",
+      "imports": ["logging", "uuid", "threading"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "ContextLogger"},
+        {"name": "id_key", "label": "Key untuk correlation ID", "type": "text", "default": "request_id"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Logger that attaches a correlation ID to every log entry.\n    Thread-safe: each thread gets its own context via threading.local().\n    \"\"\"\n    def __init__(self, name='app', id_key='{{id_key}}'):\n        self._logger = logging.getLogger(name)\n        self._id_key = id_key\n        self._local = threading.local()\n\n    def _get_ctx(self):\n        if not hasattr(self._local, 'context'):\n            self._local.context = {}\n        return self._local.context\n\n    def set_context(self, **kwargs):\n        \"\"\"Set context values for the current thread (e.g. request_id, user_id).\"\"\"\n        ctx = self._get_ctx()\n        ctx.update(kwargs)\n\n    def clear_context(self):\n        \"\"\"Clear all context for current thread.\"\"\"\n        self._local.context = {}\n\n    def new_correlation_id(self):\n        \"\"\"Generate and set a new correlation ID. Returns the ID.\"\"\"\n        cid = str(uuid.uuid4())[:8]\n        self.set_context(**{self._id_key: cid})\n        return cid\n\n    def _format_msg(self, msg):\n        ctx = self._get_ctx()\n        if ctx:\n            ctx_str = ' '.join('[%s=%s]' % (k, v) for k, v in ctx.items())\n            return ctx_str + ' ' + msg\n        return msg\n\n    def info(self, msg, *args, **kwargs):\n        self._logger.info(self._format_msg(msg), *args, **kwargs)\n\n    def warning(self, msg, *args, **kwargs):\n        self._logger.warning(self._format_msg(msg), *args, **kwargs)\n\n    def error(self, msg, *args, **kwargs):\n        self._logger.error(self._format_msg(msg), *args, **kwargs)\n\n    def debug(self, msg, *args, **kwargs):\n        self._logger.debug(self._format_msg(msg), *args, **kwargs)\n\n    def critical(self, msg, *args, **kwargs):\n        self._logger.critical(self._format_msg(msg), *args, **kwargs)\n",
+      "sample_values": {
+        "nama_class": "ContextLogger",
+        "id_key": "request_id"
+      }
+    },
+    {
+      "id": "metrics_collector",
+      "title": "Simple Metrics Collector",
+      "description": "Counter, gauge, histogram dasar. Thread-safe. Export ke dict untuk monitoring.",
+      "imports": ["threading", "time"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "MetricsCollector"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Simple metrics collector: counters, gauges, and histograms. Thread-safe.\"\"\"\n    def __init__(self):\n        self._counters = {}\n        self._gauges = {}\n        self._histograms = {}\n        self._lock = threading.Lock()\n\n    def counter(self, name, value=1):\n        \"\"\"Increment counter by value.\"\"\"\n        with self._lock:\n            self._counters[name] = self._counters.get(name, 0) + value\n\n    def get_counter(self, name):\n        return self._counters.get(name, 0)\n\n    def gauge(self, name, value):\n        \"\"\"Set gauge to value.\"\"\"\n        with self._lock:\n            self._gauges[name] = value\n\n    def get_gauge(self, name):\n        return self._gauges.get(name, 0)\n\n    def histogram(self, name, value):\n        \"\"\"Record a value in a histogram.\"\"\"\n        with self._lock:\n            if name not in self._histograms:\n                self._histograms[name] = []\n            self._histograms[name].append(value)\n\n    def get_histogram(self, name):\n        with self._lock:\n            data = list(self._histograms.get(name, []))\n        if not data:\n            return {'count': 0, 'min': 0, 'max': 0, 'mean': 0}\n        return {\n            'count': len(data),\n            'min': min(data),\n            'max': max(data),\n            'mean': sum(data) / len(data),\n        }\n\n    def export(self):\n        \"\"\"Export all metrics as a dict.\"\"\"\n        with self._lock:\n            return {\n                'counters': dict(self._counters),\n                'gauges': dict(self._gauges),\n                'histograms': {\n                    name: {'count': len(vals), 'min': min(vals) if vals else 0, 'max': max(vals) if vals else 0, 'mean': sum(vals)/len(vals) if vals else 0}\n                    for name, vals in self._histograms.items()\n                },\n            }\n\n    def reset(self):\n        with self._lock:\n            self._counters.clear()\n            self._gauges.clear()\n            self._histograms.clear()\n",
+      "sample_values": {
+        "nama_class": "MetricsCollector"
+      }
+    },
+    {
+      "id": "health_check",
+      "title": "Health Check Endpoint Helper",
+      "description": "Build health check status JSON. Cek dependencies (DB, cache, external APIs).",
+      "imports": ["time", "datetime"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "HealthChecker"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Health check aggregator. Register check functions and get overall status.\"\"\"\n    def __init__(self, app_name='app', version='1.0.0'):\n        self.app_name = app_name\n        self.version = version\n        self._checks = {}\n\n    def register(self, name, check_func, critical=True):\n        \"\"\"Register a health check.\n        check_func: callable that returns True/False or raises on failure.\n        critical: if True, failure makes overall status 'unhealthy'.\n        \"\"\"\n        self._checks[name] = {'func': check_func, 'critical': critical}\n\n    def run(self):\n        \"\"\"Run all checks. Returns health status dict.\"\"\"\n        results = {}\n        overall_healthy = True\n        for name, check in self._checks.items():\n            start = time.monotonic()\n            try:\n                result = check['func']()\n                ok = result is not False\n                error = None\n            except Exception as exc:\n                ok = False\n                error = str(exc)\n            elapsed_ms = round((time.monotonic() - start) * 1000, 2)\n            if not ok and check['critical']:\n                overall_healthy = False\n            results[name] = {\n                'status': 'healthy' if ok else 'unhealthy',\n                'response_time_ms': elapsed_ms,\n                'error': error,\n                'critical': check['critical'],\n            }\n        return {\n            'status': 'healthy' if overall_healthy else 'unhealthy',\n            'app': self.app_name,\n            'version': self.version,\n            'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),\n            'checks': results,\n        }\n",
+      "sample_values": {
+        "nama_class": "HealthChecker"
+      }
+    },
+    {
+      "id": "error_tracker",
+      "title": "Error Rate Tracker",
+      "description": "Track error count dan rate per interval. Berguna untuk alerting & monitoring.",
+      "imports": ["time", "threading"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "ErrorTracker"},
+        {"name": "window_seconds", "label": "Window size (detik)", "type": "int", "default": 60}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Track error counts and rates per time window. Thread-safe.\"\"\"\n    def __init__(self, window_seconds={{window_seconds}}):\n        self.window = window_seconds\n        self._errors = {}\n        self._lock = threading.Lock()\n\n    def record(self, error_type='error', message=''):\n        \"\"\"Record an error event.\"\"\"\n        now = time.time()\n        with self._lock:\n            if error_type not in self._errors:\n                self._errors[error_type] = []\n            self._errors[error_type].append({'time': now, 'message': message})\n            self._cleanup(error_type, now)\n\n    def _cleanup(self, error_type, now):\n        \"\"\"Remove entries older than window.\"\"\"\n        cutoff = now - self.window\n        self._errors[error_type] = [e for e in self._errors[error_type] if e['time'] > cutoff]\n\n    def count(self, error_type='error'):\n        \"\"\"Get error count in current window.\"\"\"\n        now = time.time()\n        with self._lock:\n            if error_type not in self._errors:\n                return 0\n            self._cleanup(error_type, now)\n            return len(self._errors[error_type])\n\n    def rate(self, error_type='error'):\n        \"\"\"Get error rate (errors per second) in current window.\"\"\"\n        c = self.count(error_type)\n        return c / self.window if self.window > 0 else 0\n\n    def total(self):\n        \"\"\"Get total errors across all types.\"\"\"\n        now = time.time()\n        with self._lock:\n            total = 0\n            for et in list(self._errors.keys()):\n                self._cleanup(et, now)\n                total += len(self._errors[et])\n            return total\n\n    def summary(self):\n        \"\"\"Get summary of all error types.\"\"\"\n        now = time.time()\n        result = {}\n        with self._lock:\n            for et in list(self._errors.keys()):\n                self._cleanup(et, now)\n                result[et] = {'count': len(self._errors[et]), 'rate': len(self._errors[et]) / self.window}\n        return result\n",
+      "sample_values": {
+        "nama_class": "ErrorTracker",
+        "window_seconds": 60
+      }
+    }
+  ]
+}

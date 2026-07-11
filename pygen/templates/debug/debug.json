@@ -1,0 +1,102 @@
+{
+  "category": "debug",
+  "label": "Debug",
+  "templates": [
+    {
+      "id": "traceback_formatter",
+      "title": "Pretty Traceback Formatter",
+      "description": "Format exception traceback dengan konteks kode di sekitarnya. Stdlib only.",
+      "imports": ["traceback", "linecache", "os"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "format_traceback"},
+        {"name": "context_lines", "label": "Context lines around error", "type": "int", "default": 3}
+      ],
+      "code": "def {{nama_fungsi}}(exc=None, context_lines={{context_lines}}):\n    \"\"\"Format exception with source code context around error lines.\n    If exc is None, uses sys.exc_info() current exception.\n    Returns formatted string.\n    \"\"\"\n    import sys\n    if exc is None:\n        exc_info = sys.exc_info()\n        if exc_info[0] is None:\n            return '(no active exception)'\n        tb_lines = traceback.format_exception(*exc_info)\n    elif isinstance(exc, BaseException):\n        tb_lines = traceback.format_exception(type(exc), exc, exc.__traceback__)\n    else:\n        return str(exc)\n    output = []\n    for line in tb_lines:\n        output.append(line.rstrip())\n        for part in line.split('\\n'):\n            stripped = part.strip()\n            if stripped.startswith('File \"') and ', line ' in stripped:\n                try:\n                    parts = stripped.split('\", line ')\n                    filepath = parts[0].replace('File \"', '')\n                    lineno = int(parts[1].split(',')[0])\n                    for offset in range(-context_lines, context_lines + 1):\n                        ln = lineno + offset\n                        if ln < 1:\n                            continue\n                        src = linecache.getline(filepath, ln).rstrip()\n                        if src:\n                            marker = ' >>>' if offset == 0 else '    '\n                            output.append(marker + str(ln).rjust(4) + ' | ' + src)\n                except (ValueError, IndexError):\n                    pass\n    return '\\n'.join(output)\n",
+      "sample_values": {
+        "nama_fungsi": "format_traceback",
+        "context_lines": 3
+      }
+    },
+    {
+      "id": "debug_context",
+      "title": "Debug Context Manager — log entry/exit",
+      "description": "Context manager yang log enter/exit fungsi + durasi + exception. Berguna untuk debugging.",
+      "imports": ["time", "sys", "functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class context manager", "type": "identifier", "default": "debug_ctx"},
+        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "debug_log"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Context manager that logs entry/exit with timing.\n    Usage: with debug_ctx('my_operation'): do_work()\n    \"\"\"\n    def __init__(self, label='block', logger=None, verbose=True):\n        self.label = label\n        self.logger = logger or (lambda msg: sys.stderr.write(msg + '\\n'))\n        self.verbose = verbose\n        self.elapsed = 0\n        self.exception = None\n\n    def __enter__(self):\n        self._start = time.perf_counter()\n        if self.verbose:\n            self.logger('[ENTER] ' + self.label)\n        return self\n\n    def __exit__(self, exc_type, exc_val, exc_tb):\n        self.elapsed = time.perf_counter() - self._start\n        if exc_type:\n            self.exception = exc_val\n            self.logger('[EXIT]  %s — FAILED after %.4fs: %s: %s' % (self.label, self.elapsed, exc_type.__name__, exc_val))\n        else:\n            if self.verbose:\n                self.logger('[EXIT]  %s — OK (%.4fs)' % (self.label, self.elapsed))\n        return False\n\n\ndef {{nama_decorator}}(logger=None):\n    \"\"\"Decorator that logs function entry, exit, duration, and exceptions.\n    Usage: @debug_log or @debug_log(logger=my_logger)\n    \"\"\"\n    log_fn = logger or (lambda msg: sys.stderr.write(msg + '\\n'))\n\n    def _decorator(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            name = func.__qualname__\n            start = time.perf_counter()\n            log_fn('[CALL]  %s(args=%r, kwargs=%r)' % (name, args, kwargs))\n            try:\n                result = func(*args, **kwargs)\n                elapsed = time.perf_counter() - start\n                log_fn('[RET]   %s → %r (%.4fs)' % (name, result, elapsed))\n                return result\n            except Exception as exc:\n                elapsed = time.perf_counter() - start\n                log_fn('[ERR]   %s → %s: %s (%.4fs)' % (name, type(exc).__name__, exc, elapsed))\n                raise\n        return wrapper\n\n    return _decorator\n",
+      "sample_values": {
+        "nama_class": "debug_ctx",
+        "nama_decorator": "debug_log"
+      }
+    },
+    {
+      "id": "reraise_with_context",
+      "title": "Re-raise Exception with Context",
+      "description": "Wrap exception dengan info tambahan tanpa hilangkan traceback asli. raise X from Y pattern.",
+      "imports": ["sys"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "reraise_with_context"},
+        {"name": "exception_name", "label": "Nama exception class", "type": "identifier", "default": "ContextError"}
+      ],
+      "code": "class {{exception_name}}(Exception):\n    \"\"\"Exception with added context information.\"\"\"\n    def __init__(self, message, original=None, context=None):\n        self.original = original\n        self.context = context or {}\n        ctx_str = ', '.join('%s=%r' % (k, v) for k, v in self.context.items())\n        full_msg = message\n        if ctx_str:\n            full_msg += ' [' + ctx_str + ']'\n        if original:\n            full_msg += ' (caused by %s: %s)' % (type(original).__name__, original)\n        super().__init__(full_msg)\n\n\ndef {{nama_fungsi}}(message, context=None):\n    \"\"\"Re-raise current exception with added context. Use inside except block.\n    Usage:\n        try:\n            risky_operation()\n        except Exception:\n            reraise_with_context('Failed during setup', context={'user_id': 42})\n    \"\"\"\n    exc_info = sys.exc_info()\n    if exc_info[0] is None:\n        raise RuntimeError('reraise_with_context called outside except block')\n    original = exc_info[1]\n    raise {{exception_name}}(message, original=original, context=context) from original\n",
+      "sample_values": {
+        "nama_fungsi": "reraise_with_context",
+        "exception_name": "ContextError"
+      }
+    },
+    {
+      "id": "deprecated_warning",
+      "title": "Deprecation Warning Decorator",
+      "description": "Decorator untuk mark fungsi/class sebagai deprecated. Tunjukkan saran pengganti.",
+      "imports": ["warnings", "functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "deprecated"}
+      ],
+      "code": "def {{nama_decorator}}(message=None, version=None, replacement=None):\n    \"\"\"Deprecation decorator. Emits DeprecationWarning when function is called.\n    Usage: @deprecated('Use new_func instead', replacement='new_func')\n    \"\"\"\n    def decorator(func):\n        msg = message or ('%s is deprecated' % func.__qualname__)\n        if replacement:\n            msg += '. Use %s instead' % replacement\n        if version:\n            msg += ' (since v%s)' % version\n\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            warnings.warn(msg, category=DeprecationWarning, stacklevel=2)\n            return func(*args, **kwargs)\n\n        wrapper.__deprecated__ = True\n        wrapper.__deprecation_message__ = msg\n        return wrapper\n    return decorator\n\n\ndef deprecated_class(message=None, version=None, replacement=None):\n    \"\"\"Deprecation decorator for classes. Warns on instantiation.\"\"\"\n    def decorator(cls):\n        msg = message or ('%s is deprecated' % cls.__name__)\n        if replacement:\n            msg += '. Use %s instead' % replacement\n        if version:\n            msg += ' (since v%s)' % version\n        original_init = cls.__init__\n\n        def new_init(self, *args, **kwargs):\n            warnings.warn(msg, category=DeprecationWarning, stacklevel=2)\n            original_init(self, *args, **kwargs)\n\n        cls.__init__ = new_init\n        cls.__deprecated__ = True\n        return cls\n    return decorator\n",
+      "sample_values": {
+        "nama_decorator": "deprecated"
+      }
+    },
+    {
+      "id": "retry_with_jitter",
+      "title": "Retry with Exponential Backoff + Jitter",
+      "description": "Decorator retry dengan exponential backoff dan random jitter. Anti-thundering herd.",
+      "imports": ["time", "random", "functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "retry"},
+        {"name": "max_retries", "label": "Max retries", "type": "int", "default": 3},
+        {"name": "base_delay", "label": "Base delay detik", "type": "int", "default": 1}
+      ],
+      "code": "def {{nama_decorator}}(max_retries={{max_retries}}, base_delay={{base_delay}}, max_delay=60, jitter=True, exceptions=(Exception,)):\n    \"\"\"Retry decorator with exponential backoff and optional jitter.\n    delay = min(max_delay, base_delay * 2^attempt) + random_jitter\n    Usage: @retry(max_retries=5, base_delay=2)\n    \"\"\"\n    def decorator(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            last_exc = None\n            for attempt in range(max_retries + 1):\n                try:\n                    return func(*args, **kwargs)\n                except exceptions as exc:\n                    last_exc = exc\n                    if attempt >= max_retries:\n                        raise\n                    delay = min(max_delay, base_delay * (2 ** attempt))\n                    if jitter:\n                        delay = delay * (0.5 + random.random())\n                    time.sleep(delay)\n            raise last_exc\n        wrapper._retry_max = max_retries\n        return wrapper\n    return decorator\n",
+      "sample_values": {
+        "nama_decorator": "retry",
+        "max_retries": 3,
+        "base_delay": 1
+      }
+    },
+    {
+      "id": "safe_getattr",
+      "title": "Safe Recursive getattr — tanpa exception",
+      "description": "Akses atribut nested dengan dot notation tanpa raise AttributeError. Return default jika gagal.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "safe_getattr"},
+        {"name": "nama_fungsi_set", "label": "Nama fungsi setter", "type": "identifier", "default": "safe_setattr"}
+      ],
+      "code": "def {{nama_fungsi}}(obj, path, default=None, separator='.'):\n    \"\"\"Safely get nested attribute or dict key using dot notation.\n    Usage: safe_getattr(obj, 'user.address.city', default='unknown')\n    Works with both object attributes and dict keys.\n    \"\"\"\n    keys = path.split(separator)\n    current = obj\n    for key in keys:\n        try:\n            if isinstance(current, dict):\n                current = current[key]\n            elif isinstance(current, (list, tuple)) and key.isdigit():\n                current = current[int(key)]\n            else:\n                current = getattr(current, key)\n        except (KeyError, IndexError, AttributeError, TypeError):\n            return default\n    return current\n\n\ndef {{nama_fungsi_set}}(obj, path, value, separator='.'):\n    \"\"\"Safely set nested attribute or dict key using dot notation.\n    Creates intermediate dicts if they don't exist.\n    Usage: safe_setattr(config, 'db.connection.host', 'localhost')\n    \"\"\"\n    keys = path.split(separator)\n    current = obj\n    for key in keys[:-1]:\n        if isinstance(current, dict):\n            if key not in current or not isinstance(current[key], (dict,)):\n                current[key] = {}\n            current = current[key]\n        else:\n            try:\n                current = getattr(current, key)\n            except AttributeError:\n                return False\n    last_key = keys[-1]\n    if isinstance(current, dict):\n        current[last_key] = value\n        return True\n    try:\n        setattr(current, last_key, value)\n        return True\n    except (AttributeError, TypeError):\n        return False\n",
+      "sample_values": {
+        "nama_fungsi": "safe_getattr",
+        "nama_fungsi_set": "safe_setattr"
+      }
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "category": "performance",
+  "label": "Performance",
+  "templates": [
+    {
+      "id": "timer_decorator",
+      "title": "Execution Timer Decorator",
+      "description": "Decorator untuk ukur waktu eksekusi fungsi. Log ke stderr atau return elapsed time.",
+      "imports": ["time", "functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "timer"},
+        {"name": "output", "label": "Output mode", "type": "choice", "options": ["print", "return", "log"], "default": "print"}
+      ],
+      "code": "def {{nama_decorator}}(func=None, output='{{output}}', label=None):\n    \"\"\"Timer decorator. Measures wall-clock execution time.\n    output: 'print' (to stderr), 'return' (add elapsed to return tuple), 'log' (via logging).\n    Usage: @timer or @timer(output='return')\n    \"\"\"\n    import sys\n    import logging\n\n    def _decorator(fn):\n        @functools.wraps(fn)\n        def wrapper(*args, **kwargs):\n            start = time.perf_counter()\n            result = fn(*args, **kwargs)\n            elapsed = time.perf_counter() - start\n            name = label or fn.__name__\n            if output == 'print':\n                sys.stderr.write('[TIMER] %s: %.4f s\\n' % (name, elapsed))\n            elif output == 'log':\n                logging.getLogger(name).info('executed in %.4f s', elapsed)\n            elif output == 'return':\n                return result, elapsed\n            return result\n        return wrapper\n\n    if func is not None:\n        return _decorator(func)\n    return _decorator\n",
+      "sample_values": {
+        "nama_decorator": "timer",
+        "output": "print"
+      }
+    },
+    {
+      "id": "memoize",
+      "title": "Memoization Decorator — cache hasil fungsi",
+      "description": "Cache hasil fungsi berdasarkan argumen. Support maxsize dan TTL. Thread-safe.",
+      "imports": ["functools", "threading", "time"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "memoize"},
+        {"name": "maxsize", "label": "Max cache entries (0=unlimited)", "type": "int", "default": 128}
+      ],
+      "code": "def {{nama_decorator}}(func=None, maxsize={{maxsize}}, ttl=None):\n    \"\"\"Memoization decorator with optional maxsize and TTL.\n    Cache key based on positional + keyword args.\n    Usage: @memoize or @memoize(maxsize=256, ttl=60)\n    \"\"\"\n    def _decorator(fn):\n        cache = {}\n        timestamps = {}\n        lock = threading.Lock()\n        hits = [0]\n        misses = [0]\n\n        def _make_key(args, kwargs):\n            return (args, tuple(sorted(kwargs.items())))\n\n        @functools.wraps(fn)\n        def wrapper(*args, **kwargs):\n            key = _make_key(args, kwargs)\n            with lock:\n                if key in cache:\n                    if ttl is None or (time.time() - timestamps[key]) < ttl:\n                        hits[0] += 1\n                        return cache[key]\n                    else:\n                        del cache[key]\n                        del timestamps[key]\n                misses[0] += 1\n            result = fn(*args, **kwargs)\n            with lock:\n                cache[key] = result\n                timestamps[key] = time.time()\n                if maxsize and len(cache) > maxsize:\n                    oldest_key = min(timestamps, key=timestamps.get)\n                    del cache[oldest_key]\n                    del timestamps[oldest_key]\n            return result\n\n        def cache_clear():\n            with lock:\n                cache.clear()\n                timestamps.clear()\n                hits[0] = 0\n                misses[0] = 0\n\n        def cache_info():\n            return {'hits': hits[0], 'misses': misses[0], 'size': len(cache)}\n\n        wrapper.cache_clear = cache_clear\n        wrapper.cache_info = cache_info\n        return wrapper\n\n    if func is not None:\n        return _decorator(func)\n    return _decorator\n",
+      "sample_values": {
+        "nama_decorator": "memoize",
+        "maxsize": 128
+      }
+    },
+    {
+      "id": "profile_context",
+      "title": "Profiler Context Manager",
+      "description": "Context manager untuk profile eksekusi blok kode. Show CPU time + wall time + line-level stats.",
+      "imports": ["time", "sys"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "Profiler"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Simple profiler context manager.\n    Measures wall time, CPU time, and optional line-by-line counting.\n    Usage: with Profiler('my_block'): do_work()\n    \"\"\"\n    def __init__(self, label='block', verbose=True):\n        self.label = label\n        self.verbose = verbose\n        self.wall_time = 0\n        self.cpu_time = 0\n\n    def __enter__(self):\n        self._wall_start = time.perf_counter()\n        self._cpu_start = time.process_time()\n        return self\n\n    def __exit__(self, *exc):\n        self.wall_time = time.perf_counter() - self._wall_start\n        self.cpu_time = time.process_time() - self._cpu_start\n        if self.verbose:\n            msg = '[PROFILE] %s: wall=%.4fs cpu=%.4fs overhead=%.1f%%' % (\n                self.label, self.wall_time, self.cpu_time,\n                (1 - self.cpu_time / self.wall_time) * 100 if self.wall_time > 0 else 0\n            )\n            sys.stderr.write(msg + '\\n')\n        return False\n\n    @staticmethod\n    def timed(func, *args, **kwargs):\n        \"\"\"Time a single function call. Returns (result, wall_time, cpu_time).\"\"\"\n        wall_start = time.perf_counter()\n        cpu_start = time.process_time()\n        result = func(*args, **kwargs)\n        wall = time.perf_counter() - wall_start\n        cpu = time.process_time() - cpu_start\n        return result, wall, cpu\n",
+      "sample_values": {
+        "nama_class": "Profiler"
+      }
+    },
+    {
+      "id": "benchmark",
+      "title": "Micro-Benchmark Runner",
+      "description": "Jalankan fungsi N kali, kumpulkan statistik: min, max, mean, median, stdev.",
+      "imports": ["time", "statistics"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "benchmark"},
+        {"name": "default_iterations", "label": "Default iterations", "type": "int", "default": 100}
+      ],
+      "code": "def {{nama_fungsi}}(func, *args, iterations={{default_iterations}}, **kwargs):\n    \"\"\"Run function multiple times and collect timing statistics.\n    Returns dict with: min, max, mean, median, stdev, total, iterations, all_times.\n    \"\"\"\n    times = []\n    result = None\n    for _ in range(iterations):\n        start = time.perf_counter()\n        result = func(*args, **kwargs)\n        elapsed = time.perf_counter() - start\n        times.append(elapsed)\n    stats = {\n        'min': min(times),\n        'max': max(times),\n        'mean': sum(times) / len(times),\n        'median': statistics.median(times),\n        'stdev': statistics.stdev(times) if len(times) > 1 else 0,\n        'total': sum(times),\n        'iterations': iterations,\n        'all_times': times,\n        'result': result,\n    }\n    return stats\n\n\ndef compare(funcs, *args, iterations={{default_iterations}}, **kwargs):\n    \"\"\"Compare multiple functions. funcs: dict of {name: callable}.\n    Returns sorted list of {name, mean, min, max}.\n    \"\"\"\n    results = []\n    for name, fn in funcs.items():\n        stats = {{nama_fungsi}}(fn, *args, iterations=iterations, **kwargs)\n        results.append({\n            'name': name,\n            'mean': stats['mean'],\n            'min': stats['min'],\n            'max': stats['max'],\n            'median': stats['median'],\n        })\n    results.sort(key=lambda x: x['mean'])\n    return results\n",
+      "sample_values": {
+        "nama_fungsi": "benchmark",
+        "default_iterations": 100
+      }
+    }
+  ]
+}

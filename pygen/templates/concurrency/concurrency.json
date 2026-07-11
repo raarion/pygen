@@ -1,0 +1,168 @@
+{
+  "category": "concurrency",
+  "label": "Concurrency",
+  "templates": [
+    {
+      "id": "thread_pool_executor",
+      "title": "Thread Pool Executor — parallel map dengan results",
+      "description": "Map function ke list items secara parallel menggunakan ThreadPoolExecutor. Collect semua results.",
+      "imports": ["concurrent.futures"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "parallel_map"},
+        {"name": "max_workers", "label": "Max workers", "type": "int", "default": 4}
+      ],
+      "code": "def {{nama_fungsi}}(func, items, max_workers={{max_workers}}, timeout=None):\n    \"\"\"Map function to items in parallel using threads.\n    Returns list of results in same order as items.\n    Raises on first exception encountered.\n    \"\"\"\n    results = [None] * len(items)\n    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:\n        future_to_idx = {executor.submit(func, item): i for i, item in enumerate(items)}\n        for future in concurrent.futures.as_completed(future_to_idx, timeout=timeout):\n            idx = future_to_idx[future]\n            results[idx] = future.result()\n    return results\n",
+      "sample_values": {
+        "nama_fungsi": "parallel_map",
+        "max_workers": 4
+      }
+    },
+    {
+      "id": "process_pool_executor",
+      "title": "Process Pool — CPU-bound parallel map",
+      "description": "Parallel map menggunakan multiprocessing. Cocok untuk CPU-heavy tasks.",
+      "imports": ["concurrent.futures"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "process_map"},
+        {"name": "max_workers", "label": "Max workers", "type": "int", "default": 4}
+      ],
+      "code": "def {{nama_fungsi}}(func, items, max_workers={{max_workers}}, chunksize=1):\n    \"\"\"Map function to items in parallel using processes.\n    Best for CPU-bound tasks. Func must be picklable (top-level defined).\n    Returns list of results in same order as items.\n    \"\"\"\n    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:\n        results = list(executor.map(func, items, chunksize=chunksize))\n    return results\n",
+      "sample_values": {
+        "nama_fungsi": "process_map",
+        "max_workers": 4
+      }
+    },
+    {
+      "id": "async_gather",
+      "title": "Async Gather — jalankan N coroutine parallel",
+      "description": "Wrapper asyncio.gather yang return list results + handle exception per-task.",
+      "imports": ["asyncio"],
+      "requires": {"python": ">=3.8"},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "async_gather"},
+        {"name": "max_concurrency", "label": "Max concurrency", "type": "int", "default": 10}
+      ],
+      "code": "def {{nama_fungsi}}(coroutines, max_concurrency={{max_concurrency}}):\n    \"\"\"Run coroutines concurrently with concurrency limit.\n    Returns list of (result_or_None, exception_or_None) tuples.\n    Usage: results = await async_gather([coro1(), coro2(), ...])\n    \"\"\"\n    semaphore = asyncio.Semaphore(max_concurrency)\n\n    async def _limited(coro):\n        async with semaphore:\n            try:\n                result = await coro\n                return (result, None)\n            except Exception as exc:\n                return (None, exc)\n\n    tasks = [asyncio.ensure_future(_limited(c)) for c in coroutines]\n    return await asyncio.gather(*tasks)\n",
+      "sample_values": {
+        "nama_fungsi": "async_gather",
+        "max_concurrency": 10
+      }
+    },
+    {
+      "id": "producer_consumer",
+      "title": "Producer-Consumer Queue",
+      "description": "Thread-safe producer-consumer pattern dengan queue. Multi-producer, multi-consumer.",
+      "imports": ["threading", "queue"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "ProducerConsumer"},
+        {"name": "queue_size", "label": "Queue max size", "type": "int", "default": 100}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Thread-safe producer-consumer with bounded queue.\"\"\"\n    def __init__(self, maxsize={{queue_size}}):\n        self._queue = queue.Queue(maxsize=maxsize)\n        self._producers = []\n        self._consumers = []\n        self._running = False\n\n    def add_producer(self, func, *args, **kwargs):\n        \"\"\"Register a producer function. func should call self.put(item).\"\"\"\n        self._producers.append((func, args, kwargs))\n\n    def add_consumer(self, func, *args, **kwargs):\n        \"\"\"Register a consumer function. func gets items via self.get().\"\"\"\n        self._consumers.append((func, args, kwargs))\n\n    def put(self, item, timeout=5):\n        \"\"\"Put item into queue (blocks if full).\"\"\"\n        self._queue.put(item, timeout=timeout)\n\n    def get(self, timeout=5):\n        \"\"\"Get item from queue (blocks if empty). Returns None if stopped.\"\"\"\n        try:\n            return self._queue.get(timeout=timeout)\n        except queue.Empty:\n            return None\n\n    def task_done(self):\n        \"\"\"Signal that a queued task is complete.\"\"\"\n        self._queue.task_done()\n\n    def start(self):\n        \"\"\"Start all producer and consumer threads.\"\"\"\n        self._running = True\n        for func, args, kwargs in self._producers:\n            t = threading.Thread(target=func, args=args, kwargs=kwargs, daemon=True)\n            t.start()\n        for func, args, kwargs in self._consumers:\n            t = threading.Thread(target=func, args=args, kwargs=kwargs, daemon=True)\n            t.start()\n\n    def stop(self):\n        \"\"\"Signal all threads to stop.\"\"\"\n        self._running = False\n\n    @property\n    def is_running(self):\n        return self._running\n\n    @property\n    def size(self):\n        return self._queue.qsize()\n",
+      "sample_values": {
+        "nama_class": "ProducerConsumer",
+        "queue_size": 100
+      }
+    },
+    {
+      "id": "rate_limited_executor",
+      "title": "Rate-Limited Executor",
+      "description": "Execute tasks dari queue dengan rate limit (N task per detik). Thread-safe.",
+      "imports": ["threading", "time", "queue"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "RateLimitedExecutor"},
+        {"name": "rate", "label": "Rate (tasks/detik)", "type": "int", "default": 10}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Execute tasks with rate limiting. Thread-safe.\"\"\"\n    def __init__(self, rate={{rate}}, max_queue=1000):\n        self.rate = rate\n        self._interval = 1.0 / rate if rate > 0 else 0\n        self._queue = queue.Queue(maxsize=max_queue)\n        self._results = {}\n        self._lock = threading.Lock()\n        self._running = False\n        self._thread = None\n\n    def submit(self, task_id, func, *args, **kwargs):\n        \"\"\"Submit a task. Returns task_id for later retrieval.\"\"\"\n        self._queue.put((task_id, func, args, kwargs))\n        return task_id\n\n    def _worker(self):\n        while self._running:\n            try:\n                task_id, func, args, kwargs = self._queue.get(timeout=0.5)\n            except queue.Empty:\n                continue\n            try:\n                result = func(*args, **kwargs)\n                with self._lock:\n                    self._results[task_id] = ('ok', result)\n            except Exception as exc:\n                with self._lock:\n                    self._results[task_id] = ('error', exc)\n            finally:\n                self._queue.task_done()\n            time.sleep(self._interval)\n\n    def start(self):\n        \"\"\"Start the executor worker thread.\"\"\"\n        self._running = True\n        self._thread = threading.Thread(target=self._worker, daemon=True)\n        self._thread.start()\n\n    def stop(self):\n        \"\"\"Stop the executor and wait for pending tasks.\"\"\"\n        self._running = False\n        if self._thread:\n            self._thread.join()\n\n    def get_result(self, task_id, timeout=30):\n        \"\"\"Get result for task_id. Blocks until available or timeout.\"\"\"\n        deadline = time.monotonic() + timeout\n        while time.monotonic() < deadline:\n            with self._lock:\n                if task_id in self._results:\n                    return self._results.pop(task_id)\n            time.sleep(0.05)\n        raise TimeoutError('Task ' + str(task_id) + ' did not complete in time')\n",
+      "sample_values": {
+        "nama_class": "RateLimitedExecutor",
+        "rate": 10
+      }
+    },
+    {
+      "id": "timeout_ctx",
+      "title": "Timeout Context Manager",
+      "description": "Context manager untuk timeout eksekusi blok kode. Pakai signal (Unix) atau threading.",
+      "imports": ["signal", "threading"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "timeout"},
+        {"name": "exception_name", "label": "Nama exception class", "type": "identifier", "default": "TimeoutError"}
+      ],
+      "code": "class {{exception_name}}(Exception):\n    \"\"\"Raised when a code block exceeds its timeout.\"\"\"\n    pass\n\n\nclass {{nama_class}}:\n    \"\"\"Timeout context manager.\n    Uses signal.SIGALRM on Unix, threading fallback on Windows.\n    Usage: with timeout(5): do_something()\n    \"\"\"\n    def __init__(self, seconds, message='Operation timed out'):\n        self.seconds = seconds\n        self.message = message\n\n    def __enter__(self):\n        try:\n            self._old_handler = signal.signal(signal.SIGALRM, self._handler)\n            signal.alarm(self.seconds)\n            self._use_signal = True\n        except (AttributeError, OSError):\n            self._use_signal = False\n            self._timer = threading.Timer(self.seconds, self._timer_handler)\n            self._timer.daemon = True\n            self._timer.start()\n        return self\n\n    def __exit__(self, *exc):\n        if self._use_signal:\n            signal.alarm(0)\n            signal.signal(signal.SIGALRM, self._old_handler)\n        else:\n            self._timer.cancel()\n\n    def _handler(self, signum, frame):\n        raise {{exception_name}}(self.message)\n\n    def _timer_handler(self):\n        raise {{exception_name}}(self.message)\n",
+      "sample_values": {
+        "nama_class": "timeout",
+        "exception_name": "TimeoutError"
+      }
+    },
+    {
+      "id": "semaphore_limiter",
+      "title": "Semaphore Concurrency Limiter",
+      "description": "Batasi jumlah concurrent operations menggunakan semaphore. Bisa sebagai decorator.",
+      "imports": ["threading", "functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "ConcurrencyLimiter"},
+        {"name": "max_concurrent", "label": "Max concurrent", "type": "int", "default": 5}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Limit concurrent operations. Usable as context manager or decorator.\"\"\"\n    def __init__(self, max_concurrent={{max_concurrent}}):\n        self._semaphore = threading.Semaphore(max_concurrent)\n        self.max_concurrent = max_concurrent\n        self._active = 0\n        self._lock = threading.Lock()\n\n    def __enter__(self):\n        self._semaphore.acquire()\n        with self._lock:\n            self._active += 1\n        return self\n\n    def __exit__(self, *exc):\n        with self._lock:\n            self._active -= 1\n        self._semaphore.release()\n\n    def __call__(self, func):\n        \"\"\"Use as decorator to limit concurrent calls to func.\"\"\"\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            with self:\n                return func(*args, **kwargs)\n        return wrapper\n\n    @property\n    def active_count(self):\n        with self._lock:\n            return self._active\n",
+      "sample_values": {
+        "nama_class": "ConcurrencyLimiter",
+        "max_concurrent": 5
+      }
+    },
+    {
+      "id": "bounded_executor",
+      "title": "Bounded Thread Pool Executor",
+      "description": "Thread pool dengan bounded queue. Reject task saat penuh, bukan block forever.",
+      "imports": ["concurrent.futures", "queue"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "BoundedExecutor"},
+        {"name": "max_workers", "label": "Max workers", "type": "int", "default": 4},
+        {"name": "max_queued", "label": "Max queued tasks", "type": "int", "default": 100}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Thread pool executor with bounded task queue.\n    Raises RuntimeError if queue is full instead of blocking.\n    \"\"\"\n    class QueueFull(Exception):\n        \"\"\"Raised when the task queue is full.\"\"\"\n        pass\n\n    def __init__(self, max_workers={{max_workers}}, max_queued={{max_queued}}):\n        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)\n        self._semaphore = threading.Semaphore(max_queued)\n\n    def submit(self, fn, *args, **kwargs):\n        \"\"\"Submit task. Raises QueueFull if queue is at capacity.\"\"\"\n        import threading\n        if not self._semaphore.acquire(blocking=False):\n            raise self.QueueFull('Task queue is full')\n        future = self._executor.submit(fn, *args, **kwargs)\n        future.add_done_callback(lambda f: self._semaphore.release())\n        return future\n\n    def map(self, fn, *iterables, timeout=None):\n        \"\"\"Map function across iterables (blocking).\"\"\"\n        return self._executor.map(fn, *iterables, timeout=timeout)\n\n    def shutdown(self, wait=True):\n        \"\"\"Shutdown the executor.\"\"\"\n        self._executor.shutdown(wait=wait)\n\n    def __enter__(self):\n        return self\n\n    def __exit__(self, *exc):\n        self.shutdown()\n",
+      "sample_values": {
+        "nama_class": "BoundedExecutor",
+        "max_workers": 4,
+        "max_queued": 100
+      }
+    },
+    {
+      "id": "debounce",
+      "title": "Debounce Decorator",
+      "description": "Decorator debounce: hanya panggil fungsi setelah idle selama X detik. Thread-safe.",
+      "imports": ["threading", "functools", "time"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "debounce"},
+        {"name": "default_wait", "label": "Default wait detik", "type": "int", "default": 1}
+      ],
+      "code": "def {{nama_decorator}}(wait_seconds={{default_wait}}):\n    \"\"\"Debounce decorator: delay function call until wait_seconds have elapsed\n    since last invocation. Previous pending call is cancelled.\n    \"\"\"\n    def decorator(func):\n        timer = [None]\n        lock = threading.Lock()\n        last_args = [None]\n        last_kwargs = [None]\n\n        def _execute():\n            with lock:\n                args = last_args[0]\n                kwargs = last_kwargs[0]\n                timer[0] = None\n            func(*args, **kwargs)\n\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            with lock:\n                last_args[0] = args\n                last_kwargs[0] = kwargs\n                if timer[0] is not None:\n                    timer[0].cancel()\n                timer[0] = threading.Timer(wait_seconds, _execute)\n                timer[0].daemon = True\n                timer[0].start()\n\n        wrapper.cancel = lambda: (timer[0].cancel() if timer[0] else None)\n        return wrapper\n    return decorator\n",
+      "sample_values": {
+        "nama_decorator": "debounce",
+        "default_wait": 1
+      }
+    },
+    {
+      "id": "throttle",
+      "title": "Throttle Decorator",
+      "description": "Decorator throttle: batasi fungsi dipanggil maksimal 1x per interval. Thread-safe.",
+      "imports": ["threading", "functools", "time"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "throttle"},
+        {"name": "default_interval", "label": "Default interval detik", "type": "int", "default": 1}
+      ],
+      "code": "def {{nama_decorator}}(interval={{default_interval}}):\n    \"\"\"Throttle decorator: function can only be called once per interval seconds.\n    Calls within the interval are silently dropped.\n    \"\"\"\n    def decorator(func):\n        lock = threading.Lock()\n        last_call = [0.0]\n\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            now = time.monotonic()\n            with lock:\n                elapsed = now - last_call[0]\n                if elapsed < interval:\n                    return None\n                last_call[0] = now\n            return func(*args, **kwargs)\n\n        def reset():\n            with lock:\n                last_call[0] = 0.0\n\n        wrapper.reset = reset\n        return wrapper\n    return decorator\n",
+      "sample_values": {
+        "nama_decorator": "throttle",
+        "default_interval": 1
+      }
+    }
+  ]
+}

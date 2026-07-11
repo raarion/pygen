@@ -1,0 +1,96 @@
+{
+  "category": "testing",
+  "label": "Testing",
+  "templates": [
+    {
+      "id": "mock_factory",
+      "title": "Mock Object Factory",
+      "description": "Auto-generate mock object dengan atribut dan method yang bisa dipanggil. stdlib only.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "MockObject"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Simple mock object. Records all attribute access and method calls.\n    Usage:\n        m = MockObject(name='test')\n        m.some_method(1, 2)\n        assert m.some_method.calls == [(1, 2)]\n    \"\"\"\n    def __init__(self, name='mock', **attrs):\n        self._name = name\n        self._calls = {}\n        self._attrs = dict(attrs)\n        self._return_values = {}\n\n    def __getattr__(self, name):\n        if name.startswith('_'):\n            raise AttributeError(name)\n        if name in self._attrs:\n            return self._attrs[name]\n        def _mock_method(*args, **kwargs):\n            if name not in self._calls:\n                self._calls[name] = []\n            self._calls[name].append((args, kwargs))\n            return self._return_values.get(name)\n        _mock_method.__name__ = name\n        return _mock_method\n\n    def set_return(self, method_name, value):\n        \"\"\"Set return value for a mock method.\"\"\"\n        self._return_values[method_name] = value\n        return self\n\n    def call_count(self, method_name):\n        \"\"\"How many times a method was called.\"\"\"\n        return len(self._calls.get(method_name, []))\n\n    @property\n    def calls(self):\n        return dict(self._calls)\n\n    def reset(self):\n        self._calls.clear()\n",
+      "sample_values": {
+        "nama_class": "MockObject"
+      }
+    },
+    {
+      "id": "fixture_data_generator",
+      "title": "Test Fixture Data Generator",
+      "description": "Generate data dummy realistis untuk testing: user, product, order, address. Tanpa library eksternal.",
+      "imports": ["random", "string"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "FixtureGenerator"},
+        {"name": "seed", "label": "Random seed (0=acak)", "type": "int", "default": 42}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Generate realistic test fixture data. Deterministic with seed.\"\"\"\n    FIRST_NAMES = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Hank', 'Ivy', 'Jack']\n    LAST_NAMES = ['Smith', 'Johnson', 'Brown', 'Davis', 'Wilson', 'Moore', 'Taylor', 'Anderson', 'Thomas', 'White']\n    DOMAINS = ['example.com', 'test.org', 'demo.net', 'sample.io']\n    STREETS = ['Main St', 'Oak Ave', 'Elm St', 'Pine Rd', 'Cedar Ln', 'Maple Dr']\n    CITIES = ['Jakarta', 'Bandung', 'Surabaya', 'Medan', 'Semarang', 'Makassar']\n\n    def __init__(self, seed={{seed}}):\n        self._rng = random.Random(seed)\n\n    def _pick(self, lst):\n        return self._rng.choice(lst)\n\n    def user(self):\n        first = self._pick(self.FIRST_NAMES)\n        last = self._pick(self.LAST_NAMES)\n        domain = self._pick(self.DOMAINS)\n        return {\n            'id': self._rng.randint(1, 99999),\n            'first_name': first,\n            'last_name': last,\n            'email': (first + '.' + last + '@' + domain).lower(),\n            'age': self._rng.randint(18, 70),\n        }\n\n    def product(self):\n        adjectives = ['Premium', 'Basic', 'Pro', 'Ultra', 'Mini', 'Mega']\n        nouns = ['Widget', 'Gadget', 'Tool', 'Device', 'Kit', 'Pack']\n        return {\n            'id': self._rng.randint(1, 99999),\n            'name': self._pick(adjectives) + ' ' + self._pick(nouns),\n            'price': round(self._rng.uniform(5, 500), 2),\n            'stock': self._rng.randint(0, 1000),\n        }\n\n    def order(self):\n        return {\n            'id': self._rng.randint(1, 99999),\n            'user_id': self._rng.randint(1, 99999),\n            'total': round(self._rng.uniform(10, 2000), 2),\n            'status': self._pick(['pending', 'paid', 'shipped', 'delivered', 'cancelled']),\n            'items_count': self._rng.randint(1, 10),\n        }\n\n    def address(self):\n        return {\n            'street': str(self._rng.randint(1, 200)) + ' ' + self._pick(self.STREETS),\n            'city': self._pick(self.CITIES),\n            'postal_code': str(self._rng.randint(10000, 99999)),\n            'country': 'Indonesia',\n        }\n\n    def batch(self, generator_func, count):\n        \"\"\"Generate multiple records. generator_func: self.user, self.product, etc.\"\"\"\n        return [generator_func() for _ in range(count)]\n",
+      "sample_values": {
+        "nama_class": "FixtureGenerator",
+        "seed": 42
+      }
+    },
+    {
+      "id": "assert_helpers",
+      "title": "Assertion Helper Collection",
+      "description": "Koleksi assertion helpers: assert_approx, assert_subset, assert_between, dll.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "prefix", "label": "Prefix fungsi", "type": "identifier", "default": "assert_"}
+      ],
+      "code": "def {{prefix}}approx(a, b, tolerance=1e-6, msg=None):\n    \"\"\"Assert two floats are approximately equal.\"\"\"\n    if abs(a - b) > tolerance:\n        raise AssertionError(msg or 'Expected %s ≈ %s (tolerance=%s), got diff=%s' % (a, b, tolerance, abs(a - b)))\n\n\ndef {{prefix}}subset(sub, superset, msg=None):\n    \"\"\"Assert sub is a subset of superset (works for lists and dicts).\"\"\"\n    if isinstance(sub, dict) and isinstance(superset, dict):\n        for k, v in sub.items():\n            if k not in superset:\n                raise AssertionError(msg or 'Key %r missing from dict' % k)\n            if superset[k] != v:\n                raise AssertionError(msg or 'Key %r: expected %r, got %r' % (k, v, superset[k]))\n    else:\n        for item in sub:\n            if item not in superset:\n                raise AssertionError(msg or 'Item %r not found in collection' % (item,))\n\n\ndef {{prefix}}between(value, low, high, msg=None):\n    \"\"\"Assert low <= value <= high.\"\"\"\n    if not (low <= value <= high):\n        raise AssertionError(msg or 'Expected %s between %s and %s' % (value, low, high))\n\n\ndef {{prefix}}type(obj, expected_type, msg=None):\n    \"\"\"Assert obj is instance of expected_type.\"\"\"\n    if not isinstance(obj, expected_type):\n        raise AssertionError(msg or 'Expected type %s, got %s' % (expected_type.__name__, type(obj).__name__))\n\n\ndef {{prefix}}raises(exception_class, func, *args, **kwargs):\n    \"\"\"Assert that func(*args, **kwargs) raises the expected exception.\n    Returns the exception instance for further inspection.\n    \"\"\"\n    try:\n        func(*args, **kwargs)\n    except exception_class as exc:\n        return exc\n    except Exception as exc:\n        raise AssertionError('Expected %s but got %s: %s' % (exception_class.__name__, type(exc).__name__, exc))\n    raise AssertionError('Expected %s but no exception was raised' % exception_class.__name__)\n\n\ndef {{prefix}}length(collection, expected, msg=None):\n    \"\"\"Assert len(collection) == expected.\"\"\"\n    actual = len(collection)\n    if actual != expected:\n        raise AssertionError(msg or 'Expected length %d, got %d' % (expected, actual))\n",
+      "sample_values": {
+        "prefix": "assert_"
+      }
+    },
+    {
+      "id": "random_test_data",
+      "title": "Random Test Data Generator",
+      "description": "Generator data random untuk testing: nama, email, phone, address, UUID, date. stdlib only.",
+      "imports": ["random", "string", "uuid", "datetime"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "RandomData"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Generate random test data using only stdlib.\"\"\"\n    def __init__(self, seed=None):\n        self._rng = random.Random(seed)\n\n    def name(self):\n        first = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Hugo', 'Iris', 'Jack',\n                 'Kara', 'Leo', 'Mia', 'Noah', 'Olga', 'Paul', 'Quinn', 'Rosa', 'Sam', 'Tina']\n        last = ['Adams', 'Brown', 'Clark', 'Davis', 'Evans', 'Fisher', 'Garcia', 'Harris', 'Ivanov', 'Jones']\n        return self._rng.choice(first) + ' ' + self._rng.choice(last)\n\n    def email(self):\n        domains = ['test.com', 'example.org', 'demo.io', 'sample.net']\n        word = ''.join(self._rng.choices(string.ascii_lowercase, k=8))\n        return word + '@' + self._rng.choice(domains)\n\n    def phone(self, country_code='+62'):\n        digits = ''.join(self._rng.choices(string.digits, k=10))\n        return country_code + digits\n\n    def uuid(self):\n        return str(uuid.UUID(int=self._rng.getrandbits(128), version=4))\n\n    def date(self, start_year=2000, end_year=2025):\n        start = datetime.date(start_year, 1, 1)\n        end = datetime.date(end_year, 12, 31)\n        delta = (end - start).days\n        random_days = self._rng.randint(0, delta)\n        return (start + datetime.timedelta(days=random_days)).isoformat()\n\n    def text(self, words=10):\n        word_list = ['lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing',\n                     'elit', 'sed', 'do', 'eiusmod', 'tempor', 'incididunt', 'ut', 'labore']\n        return ' '.join(self._rng.choices(word_list, k=words))\n\n    def integer(self, low=0, high=10000):\n        return self._rng.randint(low, high)\n\n    def float_val(self, low=0.0, high=1000.0, decimals=2):\n        return round(self._rng.uniform(low, high), decimals)\n\n    def boolean(self, true_rate=0.5):\n        return self._rng.random() < true_rate\n\n    def choice(self, options):\n        return self._rng.choice(options)\n",
+      "sample_values": {
+        "nama_class": "RandomData"
+      }
+    },
+    {
+      "id": "property_test_runner",
+      "title": "Property-Based Test Helper",
+      "description": "Test invariant: untuk setiap input random, properti tertentu harus terpenuhi. Mini hypothesis.",
+      "imports": ["random"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "PropertyTester"},
+        {"name": "default_cases", "label": "Default jumlah test cases", "type": "int", "default": 100}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Property-based testing helper. Generate random inputs and verify invariants.\n    Usage:\n        pt = PropertyTester()\n        pt.check(lambda x: abs(x) >= 0, pt.gen_int, 'abs always positive')\n    \"\"\"\n    def __init__(self, seed=None):\n        self._rng = random.Random(seed)\n\n    def gen_int(self, low=-1000, high=1000):\n        return lambda: self._rng.randint(low, high)\n\n    def gen_float(self, low=-1000.0, high=1000.0):\n        return lambda: self._rng.uniform(low, high)\n\n    def gen_string(self, min_len=0, max_len=50):\n        def _gen():\n            length = self._rng.randint(min_len, max_len)\n            chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 '\n            return ''.join(self._rng.choices(chars, k=length))\n        return _gen\n\n    def gen_list(self, element_gen, min_len=0, max_len=20):\n        def _gen():\n            length = self._rng.randint(min_len, max_len)\n            return [element_gen() for _ in range(length)]\n        return _gen\n\n    def gen_choice(self, options):\n        return lambda: self._rng.choice(options)\n\n    def check(self, predicate, generator, label='property', cases={{default_cases}}):\n        \"\"\"Run predicate(generator()) N times. Raises on first failure with counterexample.\"\"\"\n        failures = []\n        for i in range(cases):\n            value = generator()\n            try:\n                result = predicate(value)\n            except Exception as exc:\n                failures.append((i, value, str(exc)))\n                break\n            if not result:\n                failures.append((i, value, 'predicate returned False'))\n                break\n        if failures:\n            idx, val, msg = failures[0]\n            raise AssertionError(\n                'Property \"%s\" failed at case #%d: input=%r, reason=%s' % (label, idx, val, msg)\n            )\n        return True\n\n    def check_no_exception(self, func, generator, label='no_exception', cases={{default_cases}}):\n        \"\"\"Run func(generator()) N times, assert no exception raised.\"\"\"\n        for i in range(cases):\n            value = generator()\n            try:\n                func(value)\n            except Exception as exc:\n                raise AssertionError(\n                    'Property \"%s\" raised %s at case #%d: input=%r' % (label, type(exc).__name__, i, value)\n                )\n        return True\n",
+      "sample_values": {
+        "nama_class": "PropertyTester",
+        "default_cases": 100
+      }
+    },
+    {
+      "id": "test_suite_runner",
+      "title": "Test Suite Discovery & Runner",
+      "description": "Auto-discover test files, run, dan report hasil. stdlib unittest compatible.",
+      "imports": ["unittest", "os", "sys", "io"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "TestSuiteRunner"},
+        {"name": "pattern", "label": "File pattern", "type": "text", "default": "test_*.py"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Auto-discover and run test files. Stdlib unittest compatible.\"\"\"\n    def __init__(self, test_dir='.', pattern='{{pattern}}'):\n        self.test_dir = os.path.abspath(test_dir)\n        self.pattern = pattern\n\n    def discover(self):\n        \"\"\"Discover test modules. Returns unittest.TestSuite.\"\"\"\n        loader = unittest.TestLoader()\n        return loader.discover(self.test_dir, pattern=self.pattern)\n\n    def run(self, suite=None, verbosity=1):\n        \"\"\"Run test suite. Returns dict with results summary.\"\"\"\n        if suite is None:\n            suite = self.discover()\n        stream = io.StringIO()\n        runner = unittest.TextTestRunner(stream=stream, verbosity=verbosity)\n        result = runner.run(suite)\n        return {\n            'tests_run': result.testsRun,\n            'failures': len(result.failures),\n            'errors': len(result.errors),\n            'skipped': len(result.skipped),\n            'successful': result.testsRun - len(result.failures) - len(result.errors) - len(result.skipped),\n            'output': stream.getvalue(),\n            'passed': result.wasSuccessful(),\n        }\n\n    def run_quick(self):\n        \"\"\"Quick summary: run tests, return pass/fail count.\"\"\"\n        result = self.run(verbosity=0)\n        return 'PASS' if result['passed'] else 'FAIL (%d failures, %d errors)' % (result['failures'], result['errors'])\n",
+      "sample_values": {
+        "nama_class": "TestSuiteRunner",
+        "pattern": "test_*.py"
+      }
+    }
+  ]
+}

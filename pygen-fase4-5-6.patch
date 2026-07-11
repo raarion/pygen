@@ -1,0 +1,1196 @@
+diff --git a/FASE4_REPORT.md b/FASE4_REPORT.md
+new file mode 100644
+index 0000000..5cb1540
+--- /dev/null
++++ b/FASE4_REPORT.md
+@@ -0,0 +1,86 @@
++# PyGen – Fase 4 Expansion Complete
++
++**Tanggal:** 2026-07-11
++**Status:** ✅ Selesai, semua test lulus
++
++- Template sebelumnya: 162
++- Template baru Fase 4: **16**
++- **Total sekarang: 178 template**
++- Domain baru: **2** → total 19 domain
++
++---
++
++## Domain baru
++
++### 1. `database/` – 8 template
++- `sqlite_crud_factory` – Generate class CRUD untuk tabel tertentu
++- `sqlite_schema_from_dict` – Auto CREATE TABLE dari dict definisi kolom
++- `sqlite_connection_pool` – Thread-safe connection pool
++- `csv_to_sqlite` – Import CSV ke SQLite (auto-detect types)
++- `sqlite_query_builder` – Method chaining query builder (.select().where().order_by())
++- `db_migration_runner` – Jalankan migrasi SQL per versi, track di _migrations
++- `sqlite_backup` – Live backup database via sqlite3.backup() API
++- `db_seed` – Seed tabel dengan data dummy (batch insert)
++
++### 2. `serialization/` – 8 template
++- `pickle_safe` – Safe pickle dengan SHA256 integrity check
++- `base64_tool` – Base64 encode/decode string & file (standard + URL-safe)
++- `binary_reader` – Baca binary file dengan struct format string
++- `msgpack_lite` – MessagePack-lite encode/decode tanpa library eksternal
++- `xml_to_dict` – XML → nested dict converter (stdlib xml.etree)
++- `dict_to_xml` – Dict → XML string builder
++- `csv_dialect_detector` – Auto-detect delimiter, quotechar, has_header
++- `line_protocol` – NDJSON/JSONL reader-writer (streaming-friendly)
++
++---
++
++## Catatan Teknis
++
++### SQLite-First Approach
++Semua template database menggunakan **sqlite3 stdlib**. Design pattern:
++- Factory pattern untuk CRUD generation
++- Method chaining untuk query builder
++- Migration versioning dengan tabel `_migrations`
++- Live backup menggunakan `sqlite3.Connection.backup()` API
++
++### Serialization Without Dependencies
++Template serialization fokus pada **zero-dependency**:
++- `msgpack_lite` adalah simplified MessagePack implementation (tidak compatible dengan spec resmi, tapi fungsional)
++- `xml_to_dict` / `dict_to_xml` menggunakan `xml.etree.ElementTree` stdlib
++- `pickle_safe` menambahkan integrity check untuk keamanan
++
++### Binary Reader
++Template `binary_reader` menggunakan `struct` module untuk parse binary format. Support:
++- Format codes: i, I, h, f, d, B, s, dll
++- Endianness: `<` (little-endian), `>` (big-endian)
++- Fixed-length strings, arrays, structs
++
++---
++
++## Test Result
++
++```
++Ran 10 tests in 0.095s
++OK
++
++test_every_template_renders_and_parses ... ok
++test_compositor_combines_all_templates_together ... ok
++test_no_leftover_placeholders ... ok
++test_all_ids_unique ... ok
++```
++
++Composite semua 178 template → **valid syntax**.
++
++---
++
++## Progress Roadmap
++
++| Fase | Status | Domain | Template |
++|---|---|---|---|
++| Fase 1-3 | ✅ | 17 | 162 |
++| **Fase 4** | **✅** | **+2** | **+16 → 178** |
++| Fase 5 | ⏳ | +2 | +14 → 192 |
++| Fase 6 | ⏳ | +3 | +17 → 209 |
++| Fase 7-10 | ⏳ | +5 | +48 → 257 |
++
++Next: **Fase 5** – Concurrency & Performance
+diff --git a/FASE5_REPORT.md b/FASE5_REPORT.md
+new file mode 100644
+index 0000000..a563faa
+--- /dev/null
++++ b/FASE5_REPORT.md
+@@ -0,0 +1,87 @@
++# PyGen – Fase 5 Expansion Complete
++
++**Tanggal:** 2026-07-11
++**Status:** ✅ Selesai, semua test lulus
++
++- Template sebelumnya: 178
++- Template baru Fase 5: **14**
++- **Total sekarang: 192 template**
++- Domain baru: **2** → total 21 domain
++
++---
++
++## Domain baru
++
++### 1. `concurrency/` – 10 template
++- `thread_pool_executor` – Parallel map dengan ThreadPoolExecutor
++- `process_pool_executor` – Process pool untuk CPU-bound tasks
++- `async_gather` – Jalankan N coroutine parallel dengan concurrency limit
++- `producer_consumer` – Thread-safe producer-consumer queue
++- `rate_limited_executor` – Execute tasks dengan rate limit (N task/detik)
++- `timeout_ctx` – Timeout context manager (signal-based Unix, threading Windows)
++- `semaphore_limiter` – Concurrency limiter (bisa sebagai decorator)
++- `bounded_executor` – Thread pool dengan bounded queue (reject saat penuh)
++- `debounce` – Debounce decorator (delay eksekusi sampai idle)
++- `throttle` – Throttle decorator (max 1x per interval)
++
++### 2. `performance/` – 4 template
++- `timer_decorator` – Execution timer (print/return/log mode)
++- `memoize` – Memoization decorator dengan maxsize + TTL
++- `profile_context` – Profiler context manager (wall time + CPU time)
++- `benchmark` – Micro-benchmark runner (min/max/mean/median/stdev)
++
++---
++
++## Catatan Teknis
++
++### Concurrency Patterns
++Template concurrency mencakup pattern fundamental:
++- **Thread vs Process**: ThreadPoolExecutor untuk I/O-bound, ProcessPoolExecutor untuk CPU-bound
++- **Producer-Consumer**: Queue-based coordination dengan multiple workers
++- **Rate Limiting**: Token bucket + rate-limited executor
++- **Timeout**: Cross-platform (signal untuk Unix, threading.Timer untuk Windows)
++- **Debouncing vs Throttling**: Debounce delay sampai idle, throttle batasi frekuensi
++
++### Thread Safety
++Semua template concurrency **thread-safe** menggunakan:
++- `threading.Lock()` untuk shared state
++- `threading.Semaphore()` untuk concurrency limiting
++- `queue.Queue()` untuk producer-consumer
++- `concurrent.futures` untuk pool executors
++
++### Performance Profiling
++Template performance fokus pada **micro-benchmarking**:
++- `timer_decorator`: 3 output mode (print to stderr, return tuple, logging)
++- `memoize`: LRU-style cache dengan TTL support
++- `benchmark`: Statistical analysis (min, max, mean, median, stdev)
++
++### Async Support
++Template `async_gather` menggunakan `asyncio.Semaphore` untuk concurrency limiting. Requires Python 3.8+ untuk `asyncio.ensure_future()`.
++
++---
++
++## Test Result
++
++```
++Ran 10 tests in 0.110s
++OK
++
++test_every_template_renders_and_parses ... ok
++test_compositor_combines_all_templates_together ... ok
++test_no_leftover_placeholders ... ok
++```
++
++Composite semua 192 template → **valid syntax**.
++
++---
++
++## Progress Roadmap
++
++| Fase | Status | Domain | Template |
++|---|---|---|---|
++| Fase 1-4 | ✅ | 19 | 178 |
++| **Fase 5** | **✅** | **+2** | **+14 → 192** |
++| Fase 6 | ⏳ | +3 | +17 → 209 |
++| Fase 7-10 | ⏳ | +5 | +48 → 257 |
++
++Next: **Fase 6** – Developer Tools & Quality
+diff --git a/FASE6_REPORT.md b/FASE6_REPORT.md
+new file mode 100644
+index 0000000..eb310ac
+--- /dev/null
++++ b/FASE6_REPORT.md
+@@ -0,0 +1,105 @@
++# PyGen – Fase 6 Expansion Complete
++
++**Tanggal:** 2026-07-11
++**Status:** ✅ Selesai, semua test lulus
++
++- Template sebelumnya: 192
++- Template baru Fase 6: **18**
++- **Total sekarang: 210 template**
++- Domain baru: **3** → total 24 domain
++
++---
++
++## Domain baru
++
++### 1. `testing/` – 6 template
++- `mock_factory` – Mock object factory (record method calls + return values)
++- `fixture_data_generator` – Generate data dummy realistis (user, product, order, address)
++- `assert_helpers` – Koleksi assertion helpers (approx, subset, between, type, raises, length)
++- `random_test_data` – Random data generator (name, email, phone, UUID, date, text)
++- `property_test_runner` – Property-based testing helper (mini hypothesis)
++- `test_suite_runner` – Auto-discover + run unittest test files
++
++### 2. `logging/` – 6 template
++- `structured_logger` – JSON structured logging (ELK/Loki-friendly)
++- `log_rotator` – RotatingFileHandler + TimedRotatingFileHandler setup
++- `context_logger` – Context-aware logger dengan correlation ID (thread-local)
++- `metrics_collector` – Counter, gauge, histogram collector (thread-safe)
++- `health_check` – Health check aggregator (cek dependencies)
++- `error_tracker` – Error rate tracker per time window
++
++### 3. `debug/` – 6 template
++- `traceback_formatter` – Pretty traceback dengan source code context
++- `debug_context` – Debug context manager + decorator (log entry/exit)
++- `reraise_with_context` – Re-raise exception dengan context tambahan
++- `deprecated_warning` – Deprecation warning decorator (function + class)
++- `retry_with_jitter` – Retry dengan exponential backoff + random jitter
++- `safe_getattr` – Safe recursive getattr dengan dot notation
++
++---
++
++## Catatan Teknis
++
++### Testing Without Dependencies
++Template testing **tidak memerlukan pytest/hypothesis**:
++- `mock_factory`: Simple mock yang record semua method calls
++- `fixture_data_generator`: Deterministic dengan seed (reproducible)
++- `property_test_runner`: Mini property-based testing dengan random input generation
++- `test_suite_runner`: Wrapper unittest discovery
++
++### Structured Logging
++Template logging fokus pada **production-ready logging**:
++- `structured_logger`: JSON format untuk log aggregator
++- `context_logger`: Thread-local correlation ID (penting untuk distributed tracing)
++- `metrics_collector`: In-memory metrics (counter/gauge/histogram)
++- `health_check`: Dependency health checking (DB, cache, external APIs)
++
++### Debugging Tools
++Template debug membantu **development & troubleshooting**:
++- `traceback_formatter`: Show source code around error line
++- `debug_context`: Log function enter/exit + duration
++- `reraise_with_context`: Add context tanpa hilangkan traceback
++- `retry_with_jitter`: Exponential backoff dengan jitter (anti thundering herd)
++
++### Thread Safety
++Template `context_logger`, `metrics_collector`, dan `error_tracker` menggunakan:
++- `threading.local()` untuk thread-local context
++- `threading.Lock()` untuk shared state protection
++
++### Correlation ID
++Template `context_logger` attach correlation ID ke setiap log entry. Penting untuk:
++- Distributed tracing
++- Request tracking
++- Debugging multi-threaded applications
++
++---
++
++## Test Result
++
++```
++Ran 10 tests in 0.151s
++OK
++
++test_every_template_renders_and_parses ... ok
++test_compositor_combines_all_templates_together ... ok
++test_no_leftover_placeholders ... ok
++```
++
++Composite semua 210 template → **valid syntax**.
++
++---
++
++## Progress Roadmap
++
++| Fase | Status | Domain | Template |
++|---|---|---|---|
++| Fase 1-5 | ✅ | 21 | 192 |
++| **Fase 6** | **✅** | **+3** | **+18 → 210** |
++| Fase 7 | ⏳ | +2 | +14 → 224 |
++| Fase 8 | ⏳ | +2 | +10 → 234 |
++| Fase 9 | ⏳ | +2 | +14 → 248 |
++| Fase 10 | ⏳ | +1 | +10 → 258 |
++
++**Target akhir: 258 template di 29 domain**
++
++Next: **Fase 7** – CLI & Terminal UX
+diff --git a/pygen/templates/concurrency/_meta.json b/pygen/templates/concurrency/_meta.json
+new file mode 100644
+index 0000000..dc4477d
+--- /dev/null
++++ b/pygen/templates/concurrency/_meta.json
+@@ -0,0 +1 @@
++{"label": "Concurrency"}
+\ No newline at end of file
+diff --git a/pygen/templates/concurrency/concurrency.json b/pygen/templates/concurrency/concurrency.json
+new file mode 100644
+index 0000000..fe0a623
+--- /dev/null
++++ b/pygen/templates/concurrency/concurrency.json
+@@ -0,0 +1,168 @@
++{
++  "category": "concurrency",
++  "label": "Concurrency",
++  "templates": [
++    {
++      "id": "thread_pool_executor",
++      "title": "Thread Pool Executor — parallel map dengan results",
++      "description": "Map function ke list items secara parallel menggunakan ThreadPoolExecutor. Collect semua results.",
++      "imports": ["concurrent.futures"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "parallel_map"},
++        {"name": "max_workers", "label": "Max workers", "type": "int", "default": 4}
++      ],
++      "code": "def {{nama_fungsi}}(func, items, max_workers={{max_workers}}, timeout=None):\n    \"\"\"Map function to items in parallel using threads.\n    Returns list of results in same order as items.\n    Raises on first exception encountered.\n    \"\"\"\n    results = [None] * len(items)\n    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:\n        future_to_idx = {executor.submit(func, item): i for i, item in enumerate(items)}\n        for future in concurrent.futures.as_completed(future_to_idx, timeout=timeout):\n            idx = future_to_idx[future]\n            results[idx] = future.result()\n    return results\n",
++      "sample_values": {
++        "nama_fungsi": "parallel_map",
++        "max_workers": 4
++      }
++    },
++    {
++      "id": "process_pool_executor",
++      "title": "Process Pool — CPU-bound parallel map",
++      "description": "Parallel map menggunakan multiprocessing. Cocok untuk CPU-heavy tasks.",
++      "imports": ["concurrent.futures"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "process_map"},
++        {"name": "max_workers", "label": "Max workers", "type": "int", "default": 4}
++      ],
++      "code": "def {{nama_fungsi}}(func, items, max_workers={{max_workers}}, chunksize=1):\n    \"\"\"Map function to items in parallel using processes.\n    Best for CPU-bound tasks. Func must be picklable (top-level defined).\n    Returns list of results in same order as items.\n    \"\"\"\n    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:\n        results = list(executor.map(func, items, chunksize=chunksize))\n    return results\n",
++      "sample_values": {
++        "nama_fungsi": "process_map",
++        "max_workers": 4
++      }
++    },
++    {
++      "id": "async_gather",
++      "title": "Async Gather — jalankan N coroutine parallel",
++      "description": "Wrapper asyncio.gather yang return list results + handle exception per-task.",
++      "imports": ["asyncio"],
++      "requires": {"python": ">=3.8"},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "async_gather"},
++        {"name": "max_concurrency", "label": "Max concurrency", "type": "int", "default": 10}
++      ],
++      "code": "def {{nama_fungsi}}(coroutines, max_concurrency={{max_concurrency}}):\n    \"\"\"Run coroutines concurrently with concurrency limit.\n    Returns list of (result_or_None, exception_or_None) tuples.\n    Usage: results = await async_gather([coro1(), coro2(), ...])\n    \"\"\"\n    semaphore = asyncio.Semaphore(max_concurrency)\n\n    async def _limited(coro):\n        async with semaphore:\n            try:\n                result = await coro\n                return (result, None)\n            except Exception as exc:\n                return (None, exc)\n\n    tasks = [asyncio.ensure_future(_limited(c)) for c in coroutines]\n    return await asyncio.gather(*tasks)\n",
++      "sample_values": {
++        "nama_fungsi": "async_gather",
++        "max_concurrency": 10
++      }
++    },
++    {
++      "id": "producer_consumer",
++      "title": "Producer-Consumer Queue",
++      "description": "Thread-safe producer-consumer pattern dengan queue. Multi-producer, multi-consumer.",
++      "imports": ["threading", "queue"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "ProducerConsumer"},
++        {"name": "queue_size", "label": "Queue max size", "type": "int", "default": 100}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Thread-safe producer-consumer with bounded queue.\"\"\"\n    def __init__(self, maxsize={{queue_size}}):\n        self._queue = queue.Queue(maxsize=maxsize)\n        self._producers = []\n        self._consumers = []\n        self._running = False\n\n    def add_producer(self, func, *args, **kwargs):\n        \"\"\"Register a producer function. func should call self.put(item).\"\"\"\n        self._producers.append((func, args, kwargs))\n\n    def add_consumer(self, func, *args, **kwargs):\n        \"\"\"Register a consumer function. func gets items via self.get().\"\"\"\n        self._consumers.append((func, args, kwargs))\n\n    def put(self, item, timeout=5):\n        \"\"\"Put item into queue (blocks if full).\"\"\"\n        self._queue.put(item, timeout=timeout)\n\n    def get(self, timeout=5):\n        \"\"\"Get item from queue (blocks if empty). Returns None if stopped.\"\"\"\n        try:\n            return self._queue.get(timeout=timeout)\n        except queue.Empty:\n            return None\n\n    def task_done(self):\n        \"\"\"Signal that a queued task is complete.\"\"\"\n        self._queue.task_done()\n\n    def start(self):\n        \"\"\"Start all producer and consumer threads.\"\"\"\n        self._running = True\n        for func, args, kwargs in self._producers:\n            t = threading.Thread(target=func, args=args, kwargs=kwargs, daemon=True)\n            t.start()\n        for func, args, kwargs in self._consumers:\n            t = threading.Thread(target=func, args=args, kwargs=kwargs, daemon=True)\n            t.start()\n\n    def stop(self):\n        \"\"\"Signal all threads to stop.\"\"\"\n        self._running = False\n\n    @property\n    def is_running(self):\n        return self._running\n\n    @property\n    def size(self):\n        return self._queue.qsize()\n",
++      "sample_values": {
++        "nama_class": "ProducerConsumer",
++        "queue_size": 100
++      }
++    },
++    {
++      "id": "rate_limited_executor",
++      "title": "Rate-Limited Executor",
++      "description": "Execute tasks dari queue dengan rate limit (N task per detik). Thread-safe.",
++      "imports": ["threading", "time", "queue"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "RateLimitedExecutor"},
++        {"name": "rate", "label": "Rate (tasks/detik)", "type": "int", "default": 10}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Execute tasks with rate limiting. Thread-safe.\"\"\"\n    def __init__(self, rate={{rate}}, max_queue=1000):\n        self.rate = rate\n        self._interval = 1.0 / rate if rate > 0 else 0\n        self._queue = queue.Queue(maxsize=max_queue)\n        self._results = {}\n        self._lock = threading.Lock()\n        self._running = False\n        self._thread = None\n\n    def submit(self, task_id, func, *args, **kwargs):\n        \"\"\"Submit a task. Returns task_id for later retrieval.\"\"\"\n        self._queue.put((task_id, func, args, kwargs))\n        return task_id\n\n    def _worker(self):\n        while self._running:\n            try:\n                task_id, func, args, kwargs = self._queue.get(timeout=0.5)\n            except queue.Empty:\n                continue\n            try:\n                result = func(*args, **kwargs)\n                with self._lock:\n                    self._results[task_id] = ('ok', result)\n            except Exception as exc:\n                with self._lock:\n                    self._results[task_id] = ('error', exc)\n            finally:\n                self._queue.task_done()\n            time.sleep(self._interval)\n\n    def start(self):\n        \"\"\"Start the executor worker thread.\"\"\"\n        self._running = True\n        self._thread = threading.Thread(target=self._worker, daemon=True)\n        self._thread.start()\n\n    def stop(self):\n        \"\"\"Stop the executor and wait for pending tasks.\"\"\"\n        self._running = False\n        if self._thread:\n            self._thread.join()\n\n    def get_result(self, task_id, timeout=30):\n        \"\"\"Get result for task_id. Blocks until available or timeout.\"\"\"\n        deadline = time.monotonic() + timeout\n        while time.monotonic() < deadline:\n            with self._lock:\n                if task_id in self._results:\n                    return self._results.pop(task_id)\n            time.sleep(0.05)\n        raise TimeoutError('Task ' + str(task_id) + ' did not complete in time')\n",
++      "sample_values": {
++        "nama_class": "RateLimitedExecutor",
++        "rate": 10
++      }
++    },
++    {
++      "id": "timeout_ctx",
++      "title": "Timeout Context Manager",
++      "description": "Context manager untuk timeout eksekusi blok kode. Pakai signal (Unix) atau threading.",
++      "imports": ["signal", "threading"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "timeout"},
++        {"name": "exception_name", "label": "Nama exception class", "type": "identifier", "default": "TimeoutError"}
++      ],
++      "code": "class {{exception_name}}(Exception):\n    \"\"\"Raised when a code block exceeds its timeout.\"\"\"\n    pass\n\n\nclass {{nama_class}}:\n    \"\"\"Timeout context manager.\n    Uses signal.SIGALRM on Unix, threading fallback on Windows.\n    Usage: with timeout(5): do_something()\n    \"\"\"\n    def __init__(self, seconds, message='Operation timed out'):\n        self.seconds = seconds\n        self.message = message\n\n    def __enter__(self):\n        try:\n            self._old_handler = signal.signal(signal.SIGALRM, self._handler)\n            signal.alarm(self.seconds)\n            self._use_signal = True\n        except (AttributeError, OSError):\n            self._use_signal = False\n            self._timer = threading.Timer(self.seconds, self._timer_handler)\n            self._timer.daemon = True\n            self._timer.start()\n        return self\n\n    def __exit__(self, *exc):\n        if self._use_signal:\n            signal.alarm(0)\n            signal.signal(signal.SIGALRM, self._old_handler)\n        else:\n            self._timer.cancel()\n\n    def _handler(self, signum, frame):\n        raise {{exception_name}}(self.message)\n\n    def _timer_handler(self):\n        raise {{exception_name}}(self.message)\n",
++      "sample_values": {
++        "nama_class": "timeout",
++        "exception_name": "TimeoutError"
++      }
++    },
++    {
++      "id": "semaphore_limiter",
++      "title": "Semaphore Concurrency Limiter",
++      "description": "Batasi jumlah concurrent operations menggunakan semaphore. Bisa sebagai decorator.",
++      "imports": ["threading", "functools"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "ConcurrencyLimiter"},
++        {"name": "max_concurrent", "label": "Max concurrent", "type": "int", "default": 5}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Limit concurrent operations. Usable as context manager or decorator.\"\"\"\n    def __init__(self, max_concurrent={{max_concurrent}}):\n        self._semaphore = threading.Semaphore(max_concurrent)\n        self.max_concurrent = max_concurrent\n        self._active = 0\n        self._lock = threading.Lock()\n\n    def __enter__(self):\n        self._semaphore.acquire()\n        with self._lock:\n            self._active += 1\n        return self\n\n    def __exit__(self, *exc):\n        with self._lock:\n            self._active -= 1\n        self._semaphore.release()\n\n    def __call__(self, func):\n        \"\"\"Use as decorator to limit concurrent calls to func.\"\"\"\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            with self:\n                return func(*args, **kwargs)\n        return wrapper\n\n    @property\n    def active_count(self):\n        with self._lock:\n            return self._active\n",
++      "sample_values": {
++        "nama_class": "ConcurrencyLimiter",
++        "max_concurrent": 5
++      }
++    },
++    {
++      "id": "bounded_executor",
++      "title": "Bounded Thread Pool Executor",
++      "description": "Thread pool dengan bounded queue. Reject task saat penuh, bukan block forever.",
++      "imports": ["concurrent.futures", "queue"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "BoundedExecutor"},
++        {"name": "max_workers", "label": "Max workers", "type": "int", "default": 4},
++        {"name": "max_queued", "label": "Max queued tasks", "type": "int", "default": 100}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Thread pool executor with bounded task queue.\n    Raises RuntimeError if queue is full instead of blocking.\n    \"\"\"\n    class QueueFull(Exception):\n        \"\"\"Raised when the task queue is full.\"\"\"\n        pass\n\n    def __init__(self, max_workers={{max_workers}}, max_queued={{max_queued}}):\n        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)\n        self._semaphore = threading.Semaphore(max_queued)\n\n    def submit(self, fn, *args, **kwargs):\n        \"\"\"Submit task. Raises QueueFull if queue is at capacity.\"\"\"\n        import threading\n        if not self._semaphore.acquire(blocking=False):\n            raise self.QueueFull('Task queue is full')\n        future = self._executor.submit(fn, *args, **kwargs)\n        future.add_done_callback(lambda f: self._semaphore.release())\n        return future\n\n    def map(self, fn, *iterables, timeout=None):\n        \"\"\"Map function across iterables (blocking).\"\"\"\n        return self._executor.map(fn, *iterables, timeout=timeout)\n\n    def shutdown(self, wait=True):\n        \"\"\"Shutdown the executor.\"\"\"\n        self._executor.shutdown(wait=wait)\n\n    def __enter__(self):\n        return self\n\n    def __exit__(self, *exc):\n        self.shutdown()\n",
++      "sample_values": {
++        "nama_class": "BoundedExecutor",
++        "max_workers": 4,
++        "max_queued": 100
++      }
++    },
++    {
++      "id": "debounce",
++      "title": "Debounce Decorator",
++      "description": "Decorator debounce: hanya panggil fungsi setelah idle selama X detik. Thread-safe.",
++      "imports": ["threading", "functools", "time"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "debounce"},
++        {"name": "default_wait", "label": "Default wait detik", "type": "int", "default": 1}
++      ],
++      "code": "def {{nama_decorator}}(wait_seconds={{default_wait}}):\n    \"\"\"Debounce decorator: delay function call until wait_seconds have elapsed\n    since last invocation. Previous pending call is cancelled.\n    \"\"\"\n    def decorator(func):\n        timer = [None]\n        lock = threading.Lock()\n        last_args = [None]\n        last_kwargs = [None]\n\n        def _execute():\n            with lock:\n                args = last_args[0]\n                kwargs = last_kwargs[0]\n                timer[0] = None\n            func(*args, **kwargs)\n\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            with lock:\n                last_args[0] = args\n                last_kwargs[0] = kwargs\n                if timer[0] is not None:\n                    timer[0].cancel()\n                timer[0] = threading.Timer(wait_seconds, _execute)\n                timer[0].daemon = True\n                timer[0].start()\n\n        wrapper.cancel = lambda: (timer[0].cancel() if timer[0] else None)\n        return wrapper\n    return decorator\n",
++      "sample_values": {
++        "nama_decorator": "debounce",
++        "default_wait": 1
++      }
++    },
++    {
++      "id": "throttle",
++      "title": "Throttle Decorator",
++      "description": "Decorator throttle: batasi fungsi dipanggil maksimal 1x per interval. Thread-safe.",
++      "imports": ["threading", "functools", "time"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "throttle"},
++        {"name": "default_interval", "label": "Default interval detik", "type": "int", "default": 1}
++      ],
++      "code": "def {{nama_decorator}}(interval={{default_interval}}):\n    \"\"\"Throttle decorator: function can only be called once per interval seconds.\n    Calls within the interval are silently dropped.\n    \"\"\"\n    def decorator(func):\n        lock = threading.Lock()\n        last_call = [0.0]\n\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            now = time.monotonic()\n            with lock:\n                elapsed = now - last_call[0]\n                if elapsed < interval:\n                    return None\n                last_call[0] = now\n            return func(*args, **kwargs)\n\n        def reset():\n            with lock:\n                last_call[0] = 0.0\n\n        wrapper.reset = reset\n        return wrapper\n    return decorator\n",
++      "sample_values": {
++        "nama_decorator": "throttle",
++        "default_interval": 1
++      }
++    }
++  ]
++}
+diff --git a/pygen/templates/database/_meta.json b/pygen/templates/database/_meta.json
+new file mode 100644
+index 0000000..8b79a14
+--- /dev/null
++++ b/pygen/templates/database/_meta.json
+@@ -0,0 +1 @@
++{"label": "Database"}
+\ No newline at end of file
+diff --git a/pygen/templates/database/database.json b/pygen/templates/database/database.json
+new file mode 100644
+index 0000000..5a029bf
+--- /dev/null
++++ b/pygen/templates/database/database.json
+@@ -0,0 +1,130 @@
++{
++  "category": "database",
++  "label": "Database",
++  "templates": [
++    {
++      "id": "sqlite_crud_factory",
++      "title": "SQLite CRUD Factory — generate class CRUD",
++      "description": "Factory function yang generate class CRUD untuk tabel tertentu. Auto create/read/update/delete.",
++      "imports": ["sqlite3"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi factory", "type": "identifier", "default": "make_crud"},
++        {"name": "nama_class", "label": "Nama class default", "type": "identifier", "default": "CrudDB"}
++      ],
++      "code": "def {{nama_fungsi}}(db_path, table_name, class_name='{{nama_class}}'):\n    \"\"\"Factory that generates a CRUD class for the given table.\n    Returns a class with create/read/update/delete methods.\n    \"\"\"\n    class CrudClass:\n        def __init__(self):\n            self.db_path = db_path\n            self.table = table_name\n\n        def _conn(self):\n            return sqlite3.connect(self.db_path)\n\n        def create(self, data):\n            \"\"\"Insert a row. data = dict of column:value.\"\"\"\n            cols = ', '.join(data.keys())\n            placeholders = ', '.join(['?'] * len(data))\n            sql = 'INSERT INTO ' + self.table + ' (' + cols + ') VALUES (' + placeholders + ')'\n            with self._conn() as conn:\n                cur = conn.execute(sql, list(data.values()))\n                return cur.lastrowid\n\n        def read(self, id_col='id', id_val=None):\n            \"\"\"Read one row by id, or all rows if id_val is None.\"\"\"\n            with self._conn() as conn:\n                conn.row_factory = sqlite3.Row\n                if id_val is not None:\n                    cur = conn.execute('SELECT * FROM ' + self.table + ' WHERE ' + id_col + ' = ?', (id_val,))\n                    row = cur.fetchone()\n                    return dict(row) if row else None\n                cur = conn.execute('SELECT * FROM ' + self.table)\n                return [dict(r) for r in cur.fetchall()]\n\n        def update(self, id_val, data, id_col='id'):\n            \"\"\"Update row by id. data = dict of column:value.\"\"\"\n            set_clause = ', '.join(k + ' = ?' for k in data.keys())\n            sql = 'UPDATE ' + self.table + ' SET ' + set_clause + ' WHERE ' + id_col + ' = ?'\n            with self._conn() as conn:\n                conn.execute(sql, list(data.values()) + [id_val])\n\n        def delete(self, id_val, id_col='id'):\n            \"\"\"Delete row by id.\"\"\"\n            with self._conn() as conn:\n                conn.execute('DELETE FROM ' + self.table + ' WHERE ' + id_col + ' = ?', (id_val,))\n\n    CrudClass.__name__ = class_name\n    CrudClass.__qualname__ = class_name\n    return CrudClass()\n",
++      "sample_values": {
++        "nama_fungsi": "make_crud",
++        "nama_class": "CrudDB"
++      }
++    },
++    {
++      "id": "sqlite_schema_from_dict",
++      "title": "Schema dari dict — auto CREATE TABLE",
++      "description": "Generate SQL CREATE TABLE dari dict definisi kolom. Support type mapping Python→SQLite.",
++      "imports": ["sqlite3"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "create_table_from_dict"},
++        {"name": "id_column", "label": "Nama kolom ID", "type": "identifier", "default": "id"}
++      ],
++      "code": "def {{nama_fungsi}}(db_path, table_name, columns):\n    \"\"\"Create a SQLite table from a dict definition.\n    columns: {'name': 'text', 'age': 'integer', 'score': 'real'}\n    Type mapping: str→TEXT, int→INTEGER, float→REAL, bool→INTEGER\n    Also accepts raw SQLite types: 'text', 'integer', 'real', 'blob'.\n    \"\"\"\n    type_map = {'str': 'TEXT', 'int': 'INTEGER', 'float': 'REAL', 'bool': 'INTEGER',\n                'text': 'TEXT', 'integer': 'INTEGER', 'real': 'REAL', 'blob': 'BLOB'}\n    col_defs = ['{{id_column}} INTEGER PRIMARY KEY AUTOINCREMENT']\n    for col_name, col_type in columns.items():\n        sqlite_type = type_map.get(col_type.lower(), col_type.upper())\n        col_defs.append(col_name + ' ' + sqlite_type)\n    sql = 'CREATE TABLE IF NOT EXISTS ' + table_name + ' (' + ', '.join(col_defs) + ')'\n    with sqlite3.connect(db_path) as conn:\n        conn.execute(sql)\n    return sql\n",
++      "sample_values": {
++        "nama_fungsi": "create_table_from_dict",
++        "id_column": "id"
++      }
++    },
++    {
++      "id": "sqlite_connection_pool",
++      "title": "SQLite Connection Pool",
++      "description": "Thread-safe connection pool untuk SQLite. Reuse koneksi, batasi jumlah.",
++      "imports": ["sqlite3", "threading", "queue"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "SQLitePool"},
++        {"name": "pool_size", "label": "Ukuran pool", "type": "int", "default": 5}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Thread-safe SQLite connection pool.\"\"\"\n    def __init__(self, db_path, pool_size={{pool_size}}):\n        self.db_path = db_path\n        self.pool_size = pool_size\n        self._pool = queue.Queue(maxsize=pool_size)\n        self._lock = threading.Lock()\n        self._created = 0\n        for _ in range(pool_size):\n            self._pool.put_nowait(self._new_conn())\n\n    def _new_conn(self):\n        conn = sqlite3.connect(self.db_path, check_same_thread=False)\n        conn.row_factory = sqlite3.Row\n        return conn\n\n    def get_connection(self, timeout=5):\n        \"\"\"Get a connection from pool. Blocks up to timeout seconds.\"\"\"\n        return self._pool.get(timeout=timeout)\n\n    def return_connection(self, conn):\n        \"\"\"Return a connection back to the pool.\"\"\"\n        self._pool.put_nowait(conn)\n\n    def execute(self, sql, params=None):\n        \"\"\"Convenience: get conn, execute, return conn, return result.\"\"\"\n        conn = self.get_connection()\n        try:\n            if params:\n                cur = conn.execute(sql, params)\n            else:\n                cur = conn.execute(sql)\n            conn.commit()\n            return cur\n        finally:\n            self.return_connection(conn)\n\n    def close_all(self):\n        \"\"\"Close all connections in pool.\"\"\"\n        while not self._pool.empty():\n            conn = self._pool.get_nowait()\n            conn.close()\n",
++      "sample_values": {
++        "nama_class": "SQLitePool",
++        "pool_size": 5
++      }
++    },
++    {
++      "id": "csv_to_sqlite",
++      "title": "CSV → SQLite Importer",
++      "description": "Baca file CSV, auto-create table, bulk insert ke SQLite. Deteksi tipe kolom otomatis.",
++      "imports": ["csv", "sqlite3"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "csv_to_sqlite"},
++        {"name": "table_name", "label": "Nama tabel default", "type": "identifier", "default": "data"}
++      ],
++      "code": "def {{nama_fungsi}}(csv_path, db_path, table_name='{{table_name}}', delimiter=','):\n    \"\"\"Import CSV file into SQLite table. Auto-creates table with detected types.\n    Returns number of rows imported.\n    \"\"\"\n    with open(csv_path, 'r', encoding='utf-8') as f:\n        reader = csv.DictReader(f, delimiter=delimiter)\n        rows = list(reader)\n    if not rows:\n        return 0\n    columns = list(rows[0].keys())\n    col_types = {}\n    for col in columns:\n        values = [r[col] for r in rows if r[col]]\n        if all(_is_int(v) for v in values):\n            col_types[col] = 'INTEGER'\n        elif all(_is_float(v) for v in values):\n            col_types[col] = 'REAL'\n        else:\n            col_types[col] = 'TEXT'\n    col_defs = ['id INTEGER PRIMARY KEY AUTOINCREMENT']\n    for col in columns:\n        col_defs.append(col + ' ' + col_types[col])\n    with sqlite3.connect(db_path) as conn:\n        conn.execute('CREATE TABLE IF NOT EXISTS ' + table_name + ' (' + ', '.join(col_defs) + ')')\n        placeholders = ', '.join(['?'] * len(columns))\n        sql = 'INSERT INTO ' + table_name + ' (' + ', '.join(columns) + ') VALUES (' + placeholders + ')'\n        for row in rows:\n            values = [_convert_value(row[c], col_types[c]) for c in columns]\n            conn.execute(sql, values)\n        conn.commit()\n    return len(rows)\n\n\ndef _is_int(s):\n    try:\n        int(s)\n        return True\n    except (ValueError, TypeError):\n        return False\n\n\ndef _is_float(s):\n    try:\n        float(s)\n        return True\n    except (ValueError, TypeError):\n        return False\n\n\ndef _convert_value(val, col_type):\n    if val == '' or val is None:\n        return None\n    if col_type == 'INTEGER':\n        return int(val)\n    if col_type == 'REAL':\n        return float(val)\n    return val\n",
++      "sample_values": {
++        "nama_fungsi": "csv_to_sqlite",
++        "table_name": "data"
++      }
++    },
++    {
++      "id": "sqlite_query_builder",
++      "title": "Simple Query Builder",
++      "description": "Method chaining query builder: .select().where().order_by(). Simple tapi powerful.",
++      "imports": ["sqlite3"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "QueryBuilder"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Fluent query builder for SQLite. Method chaining.\"\"\"\n    def __init__(self, db_path, table):\n        self.db_path = db_path\n        self.table = table\n        self._select_cols = '*'\n        self._where_clauses = []\n        self._params = []\n        self._order = ''\n        self._limit = ''\n        self._offset = ''\n\n    def select(self, *columns):\n        self._select_cols = ', '.join(columns) if columns else '*'\n        return self\n\n    def where(self, condition, *params):\n        self._where_clauses.append(condition)\n        self._params.extend(params)\n        return self\n\n    def order_by(self, column, direction='ASC'):\n        self._order = ' ORDER BY ' + column + ' ' + direction.upper()\n        return self\n\n    def limit(self, n, offset=0):\n        self._limit = ' LIMIT ' + str(n)\n        if offset:\n            self._offset = ' OFFSET ' + str(offset)\n        return self\n\n    def build(self):\n        sql = 'SELECT ' + self._select_cols + ' FROM ' + self.table\n        if self._where_clauses:\n            sql += ' WHERE ' + ' AND '.join(self._where_clauses)\n        sql += self._order + self._limit + self._offset\n        return sql, self._params\n\n    def execute(self):\n        sql, params = self.build()\n        with sqlite3.connect(self.db_path) as conn:\n            conn.row_factory = sqlite3.Row\n            cur = conn.execute(sql, params)\n            return [dict(row) for row in cur.fetchall()]\n\n    def count(self):\n        old_select = self._select_cols\n        self._select_cols = 'COUNT(*) as cnt'\n        sql, params = self.build()\n        self._select_cols = old_select\n        with sqlite3.connect(self.db_path) as conn:\n            cur = conn.execute(sql, params)\n            return cur.fetchone()[0]\n",
++      "sample_values": {
++        "nama_class": "QueryBuilder"
++      }
++    },
++    {
++      "id": "db_migration_runner",
++      "title": "Database Migration Runner",
++      "description": "Jalankan file SQL bermigrasi per versi. Track versi di tabel _migrations. Idempotent.",
++      "imports": ["sqlite3", "os", "glob"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "MigrationRunner"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Run SQL migrations from a directory. Tracks applied versions.\"\"\"\n    def __init__(self, db_path, migrations_dir):\n        self.db_path = db_path\n        self.migrations_dir = migrations_dir\n        self._init_migration_table()\n\n    def _init_migration_table(self):\n        with sqlite3.connect(self.db_path) as conn:\n            conn.execute('''CREATE TABLE IF NOT EXISTS _migrations (\n                version TEXT PRIMARY KEY,\n                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                filename TEXT\n            )''')\n            conn.commit()\n\n    def _applied_versions(self):\n        with sqlite3.connect(self.db_path) as conn:\n            cur = conn.execute('SELECT version FROM _migrations ORDER BY version')\n            return set(row[0] for row in cur.fetchall())\n\n    def _discover_migrations(self):\n        pattern = os.path.join(self.migrations_dir, '*.sql')\n        files = sorted(glob.glob(pattern))\n        migrations = []\n        for f in files:\n            basename = os.path.basename(f)\n            version = os.path.splitext(basename)[0]\n            migrations.append((version, basename, f))\n        return migrations\n\n    def run(self):\n        \"\"\"Run all unapplied migrations. Returns list of applied versions.\"\"\"\n        applied = self._applied_versions()\n        migrations = self._discover_migrations()\n        newly_applied = []\n        for version, filename, filepath in migrations:\n            if version in applied:\n                continue\n            with open(filepath, 'r', encoding='utf-8') as f:\n                sql = f.read()\n            with sqlite3.connect(self.db_path) as conn:\n                conn.executescript(sql)\n                conn.execute('INSERT INTO _migrations (version, filename) VALUES (?, ?)',\n                             (version, filename))\n                conn.commit()\n            newly_applied.append(version)\n        return newly_applied\n\n    def status(self):\n        \"\"\"Return dict of {version: applied_bool} for all migrations.\"\"\"\n        applied = self._applied_versions()\n        result = {}\n        for version, _, _ in self._discover_migrations():\n            result[version] = version in applied\n        return result\n",
++      "sample_values": {
++        "nama_class": "MigrationRunner"
++      }
++    },
++    {
++      "id": "sqlite_backup",
++      "title": "SQLite Backup Helper",
++      "description": "Backup database SQLite ke file lain. Live backup tanpa lock database utama.",
++      "imports": ["sqlite3", "shutil", "os", "datetime"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "backup_database"},
++        {"name": "suffix_format", "label": "Format timestamp suffix", "type": "text", "default": "%Y%m%d_%H%M%S"}
++      ],
++      "code": "def {{nama_fungsi}}(db_path, backup_dir=None, suffix='{{suffix_format}}'):\n    \"\"\"Backup SQLite database to a new file. Returns backup file path.\n    Uses sqlite3 backup API for safe live backup.\n    If backup_dir is None, creates backup alongside original file.\n    \"\"\"\n    if backup_dir is None:\n        backup_dir = os.path.dirname(db_path) or '.'\n    os.makedirs(backup_dir, exist_ok=True)\n    timestamp = datetime.datetime.now().strftime(suffix)\n    base = os.path.splitext(os.path.basename(db_path))[0]\n    backup_path = os.path.join(backup_dir, base + '_backup_' + timestamp + '.db')\n    source = sqlite3.connect(db_path)\n    dest = sqlite3.connect(backup_path)\n    with dest:\n        source.backup(dest)\n    source.close()\n    dest.close()\n    return backup_path\n",
++      "sample_values": {
++        "nama_fungsi": "backup_database",
++        "suffix_format": "%Y%m%d_%H%M%S"
++      }
++    },
++    {
++      "id": "db_seed",
++      "title": "Database Seeder",
++      "description": "Seed tabel dengan data dummy dari list of dict. Support batch insert.",
++      "imports": ["sqlite3"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "seed_table"},
++        {"name": "batch_size", "label": "Batch size", "type": "int", "default": 100}
++      ],
++      "code": "def {{nama_fungsi}}(db_path, table_name, records, batch_size={{batch_size}}):\n    \"\"\"Seed a table with list of dict records. Batch insert for performance.\n    Returns number of rows inserted.\n    \"\"\"\n    if not records:\n        return 0\n    columns = list(records[0].keys())\n    placeholders = ', '.join(['?'] * len(columns))\n    col_names = ', '.join(columns)\n    sql = 'INSERT INTO ' + table_name + ' (' + col_names + ') VALUES (' + placeholders + ')'\n    inserted = 0\n    with sqlite3.connect(db_path) as conn:\n        batch = []\n        for record in records:\n            values = [record.get(col) for col in columns]\n            batch.append(values)\n            if len(batch) >= batch_size:\n                conn.executemany(sql, batch)\n                inserted += len(batch)\n                batch = []\n        if batch:\n            conn.executemany(sql, batch)\n            inserted += len(batch)\n        conn.commit()\n    return inserted\n",
++      "sample_values": {
++        "nama_fungsi": "seed_table",
++        "batch_size": 100
++      }
++    }
++  ]
++}
+diff --git a/pygen/templates/debug/_meta.json b/pygen/templates/debug/_meta.json
+new file mode 100644
+index 0000000..cd4c890
+--- /dev/null
++++ b/pygen/templates/debug/_meta.json
+@@ -0,0 +1 @@
++{"label": "Debug"}
+\ No newline at end of file
+diff --git a/pygen/templates/debug/debug.json b/pygen/templates/debug/debug.json
+new file mode 100644
+index 0000000..0c054fc
+--- /dev/null
++++ b/pygen/templates/debug/debug.json
+@@ -0,0 +1,102 @@
++{
++  "category": "debug",
++  "label": "Debug",
++  "templates": [
++    {
++      "id": "traceback_formatter",
++      "title": "Pretty Traceback Formatter",
++      "description": "Format exception traceback dengan konteks kode di sekitarnya. Stdlib only.",
++      "imports": ["traceback", "linecache", "os"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "format_traceback"},
++        {"name": "context_lines", "label": "Context lines around error", "type": "int", "default": 3}
++      ],
++      "code": "def {{nama_fungsi}}(exc=None, context_lines={{context_lines}}):\n    \"\"\"Format exception with source code context around error lines.\n    If exc is None, uses sys.exc_info() current exception.\n    Returns formatted string.\n    \"\"\"\n    import sys\n    if exc is None:\n        exc_info = sys.exc_info()\n        if exc_info[0] is None:\n            return '(no active exception)'\n        tb_lines = traceback.format_exception(*exc_info)\n    elif isinstance(exc, BaseException):\n        tb_lines = traceback.format_exception(type(exc), exc, exc.__traceback__)\n    else:\n        return str(exc)\n    output = []\n    for line in tb_lines:\n        output.append(line.rstrip())\n        for part in line.split('\\n'):\n            stripped = part.strip()\n            if stripped.startswith('File \"') and ', line ' in stripped:\n                try:\n                    parts = stripped.split('\", line ')\n                    filepath = parts[0].replace('File \"', '')\n                    lineno = int(parts[1].split(',')[0])\n                    for offset in range(-context_lines, context_lines + 1):\n                        ln = lineno + offset\n                        if ln < 1:\n                            continue\n                        src = linecache.getline(filepath, ln).rstrip()\n                        if src:\n                            marker = ' >>>' if offset == 0 else '    '\n                            output.append(marker + str(ln).rjust(4) + ' | ' + src)\n                except (ValueError, IndexError):\n                    pass\n    return '\\n'.join(output)\n",
++      "sample_values": {
++        "nama_fungsi": "format_traceback",
++        "context_lines": 3
++      }
++    },
++    {
++      "id": "debug_context",
++      "title": "Debug Context Manager — log entry/exit",
++      "description": "Context manager yang log enter/exit fungsi + durasi + exception. Berguna untuk debugging.",
++      "imports": ["time", "sys", "functools"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class context manager", "type": "identifier", "default": "debug_ctx"},
++        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "debug_log"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Context manager that logs entry/exit with timing.\n    Usage: with debug_ctx('my_operation'): do_work()\n    \"\"\"\n    def __init__(self, label='block', logger=None, verbose=True):\n        self.label = label\n        self.logger = logger or (lambda msg: sys.stderr.write(msg + '\\n'))\n        self.verbose = verbose\n        self.elapsed = 0\n        self.exception = None\n\n    def __enter__(self):\n        self._start = time.perf_counter()\n        if self.verbose:\n            self.logger('[ENTER] ' + self.label)\n        return self\n\n    def __exit__(self, exc_type, exc_val, exc_tb):\n        self.elapsed = time.perf_counter() - self._start\n        if exc_type:\n            self.exception = exc_val\n            self.logger('[EXIT]  %s — FAILED after %.4fs: %s: %s' % (self.label, self.elapsed, exc_type.__name__, exc_val))\n        else:\n            if self.verbose:\n                self.logger('[EXIT]  %s — OK (%.4fs)' % (self.label, self.elapsed))\n        return False\n\n\ndef {{nama_decorator}}(logger=None):\n    \"\"\"Decorator that logs function entry, exit, duration, and exceptions.\n    Usage: @debug_log or @debug_log(logger=my_logger)\n    \"\"\"\n    log_fn = logger or (lambda msg: sys.stderr.write(msg + '\\n'))\n\n    def _decorator(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            name = func.__qualname__\n            start = time.perf_counter()\n            log_fn('[CALL]  %s(args=%r, kwargs=%r)' % (name, args, kwargs))\n            try:\n                result = func(*args, **kwargs)\n                elapsed = time.perf_counter() - start\n                log_fn('[RET]   %s → %r (%.4fs)' % (name, result, elapsed))\n                return result\n            except Exception as exc:\n                elapsed = time.perf_counter() - start\n                log_fn('[ERR]   %s → %s: %s (%.4fs)' % (name, type(exc).__name__, exc, elapsed))\n                raise\n        return wrapper\n\n    return _decorator\n",
++      "sample_values": {
++        "nama_class": "debug_ctx",
++        "nama_decorator": "debug_log"
++      }
++    },
++    {
++      "id": "reraise_with_context",
++      "title": "Re-raise Exception with Context",
++      "description": "Wrap exception dengan info tambahan tanpa hilangkan traceback asli. raise X from Y pattern.",
++      "imports": ["sys"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "reraise_with_context"},
++        {"name": "exception_name", "label": "Nama exception class", "type": "identifier", "default": "ContextError"}
++      ],
++      "code": "class {{exception_name}}(Exception):\n    \"\"\"Exception with added context information.\"\"\"\n    def __init__(self, message, original=None, context=None):\n        self.original = original\n        self.context = context or {}\n        ctx_str = ', '.join('%s=%r' % (k, v) for k, v in self.context.items())\n        full_msg = message\n        if ctx_str:\n            full_msg += ' [' + ctx_str + ']'\n        if original:\n            full_msg += ' (caused by %s: %s)' % (type(original).__name__, original)\n        super().__init__(full_msg)\n\n\ndef {{nama_fungsi}}(message, context=None):\n    \"\"\"Re-raise current exception with added context. Use inside except block.\n    Usage:\n        try:\n            risky_operation()\n        except Exception:\n            reraise_with_context('Failed during setup', context={'user_id': 42})\n    \"\"\"\n    exc_info = sys.exc_info()\n    if exc_info[0] is None:\n        raise RuntimeError('reraise_with_context called outside except block')\n    original = exc_info[1]\n    raise {{exception_name}}(message, original=original, context=context) from original\n",
++      "sample_values": {
++        "nama_fungsi": "reraise_with_context",
++        "exception_name": "ContextError"
++      }
++    },
++    {
++      "id": "deprecated_warning",
++      "title": "Deprecation Warning Decorator",
++      "description": "Decorator untuk mark fungsi/class sebagai deprecated. Tunjukkan saran pengganti.",
++      "imports": ["warnings", "functools"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "deprecated"}
++      ],
++      "code": "def {{nama_decorator}}(message=None, version=None, replacement=None):\n    \"\"\"Deprecation decorator. Emits DeprecationWarning when function is called.\n    Usage: @deprecated('Use new_func instead', replacement='new_func')\n    \"\"\"\n    def decorator(func):\n        msg = message or ('%s is deprecated' % func.__qualname__)\n        if replacement:\n            msg += '. Use %s instead' % replacement\n        if version:\n            msg += ' (since v%s)' % version\n\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            warnings.warn(msg, category=DeprecationWarning, stacklevel=2)\n            return func(*args, **kwargs)\n\n        wrapper.__deprecated__ = True\n        wrapper.__deprecation_message__ = msg\n        return wrapper\n    return decorator\n\n\ndef deprecated_class(message=None, version=None, replacement=None):\n    \"\"\"Deprecation decorator for classes. Warns on instantiation.\"\"\"\n    def decorator(cls):\n        msg = message or ('%s is deprecated' % cls.__name__)\n        if replacement:\n            msg += '. Use %s instead' % replacement\n        if version:\n            msg += ' (since v%s)' % version\n        original_init = cls.__init__\n\n        def new_init(self, *args, **kwargs):\n            warnings.warn(msg, category=DeprecationWarning, stacklevel=2)\n            original_init(self, *args, **kwargs)\n\n        cls.__init__ = new_init\n        cls.__deprecated__ = True\n        return cls\n    return decorator\n",
++      "sample_values": {
++        "nama_decorator": "deprecated"
++      }
++    },
++    {
++      "id": "retry_with_jitter",
++      "title": "Retry with Exponential Backoff + Jitter",
++      "description": "Decorator retry dengan exponential backoff dan random jitter. Anti-thundering herd.",
++      "imports": ["time", "random", "functools"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "retry"},
++        {"name": "max_retries", "label": "Max retries", "type": "int", "default": 3},
++        {"name": "base_delay", "label": "Base delay detik", "type": "int", "default": 1}
++      ],
++      "code": "def {{nama_decorator}}(max_retries={{max_retries}}, base_delay={{base_delay}}, max_delay=60, jitter=True, exceptions=(Exception,)):\n    \"\"\"Retry decorator with exponential backoff and optional jitter.\n    delay = min(max_delay, base_delay * 2^attempt) + random_jitter\n    Usage: @retry(max_retries=5, base_delay=2)\n    \"\"\"\n    def decorator(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            last_exc = None\n            for attempt in range(max_retries + 1):\n                try:\n                    return func(*args, **kwargs)\n                except exceptions as exc:\n                    last_exc = exc\n                    if attempt >= max_retries:\n                        raise\n                    delay = min(max_delay, base_delay * (2 ** attempt))\n                    if jitter:\n                        delay = delay * (0.5 + random.random())\n                    time.sleep(delay)\n            raise last_exc\n        wrapper._retry_max = max_retries\n        return wrapper\n    return decorator\n",
++      "sample_values": {
++        "nama_decorator": "retry",
++        "max_retries": 3,
++        "base_delay": 1
++      }
++    },
++    {
++      "id": "safe_getattr",
++      "title": "Safe Recursive getattr — tanpa exception",
++      "description": "Akses atribut nested dengan dot notation tanpa raise AttributeError. Return default jika gagal.",
++      "imports": [],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "safe_getattr"},
++        {"name": "nama_fungsi_set", "label": "Nama fungsi setter", "type": "identifier", "default": "safe_setattr"}
++      ],
++      "code": "def {{nama_fungsi}}(obj, path, default=None, separator='.'):\n    \"\"\"Safely get nested attribute or dict key using dot notation.\n    Usage: safe_getattr(obj, 'user.address.city', default='unknown')\n    Works with both object attributes and dict keys.\n    \"\"\"\n    keys = path.split(separator)\n    current = obj\n    for key in keys:\n        try:\n            if isinstance(current, dict):\n                current = current[key]\n            elif isinstance(current, (list, tuple)) and key.isdigit():\n                current = current[int(key)]\n            else:\n                current = getattr(current, key)\n        except (KeyError, IndexError, AttributeError, TypeError):\n            return default\n    return current\n\n\ndef {{nama_fungsi_set}}(obj, path, value, separator='.'):\n    \"\"\"Safely set nested attribute or dict key using dot notation.\n    Creates intermediate dicts if they don't exist.\n    Usage: safe_setattr(config, 'db.connection.host', 'localhost')\n    \"\"\"\n    keys = path.split(separator)\n    current = obj\n    for key in keys[:-1]:\n        if isinstance(current, dict):\n            if key not in current or not isinstance(current[key], (dict,)):\n                current[key] = {}\n            current = current[key]\n        else:\n            try:\n                current = getattr(current, key)\n            except AttributeError:\n                return False\n    last_key = keys[-1]\n    if isinstance(current, dict):\n        current[last_key] = value\n        return True\n    try:\n        setattr(current, last_key, value)\n        return True\n    except (AttributeError, TypeError):\n        return False\n",
++      "sample_values": {
++        "nama_fungsi": "safe_getattr",
++        "nama_fungsi_set": "safe_setattr"
++      }
++    }
++  ]
++}
+diff --git a/pygen/templates/logging/_meta.json b/pygen/templates/logging/_meta.json
+new file mode 100644
+index 0000000..84d6ba1
+--- /dev/null
++++ b/pygen/templates/logging/_meta.json
+@@ -0,0 +1 @@
++{"label": "Logging"}
+\ No newline at end of file
+diff --git a/pygen/templates/logging/logging.json b/pygen/templates/logging/logging.json
+new file mode 100644
+index 0000000..2d0f5d2
+--- /dev/null
++++ b/pygen/templates/logging/logging.json
+@@ -0,0 +1,100 @@
++{
++  "category": "logging",
++  "label": "Logging",
++  "templates": [
++    {
++      "id": "structured_logger",
++      "title": "Structured JSON Logger",
++      "description": "Log dalam format JSON, bukan plain text. Mudah di-parse oleh log aggregator (ELK, Loki, dll).",
++      "imports": ["logging", "json", "datetime", "sys"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class handler", "type": "identifier", "default": "JSONFormatter"},
++        {"name": "nama_fungsi_setup", "label": "Nama fungsi setup", "type": "identifier", "default": "setup_json_logger"}
++      ],
++      "code": "class {{nama_class}}(logging.Formatter):\n    \"\"\"Format log records as JSON lines. One JSON object per line.\"\"\"\n    def format(self, record):\n        log_entry = {\n            'timestamp': datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc).isoformat(),\n            'level': record.levelname,\n            'logger': record.name,\n            'message': record.getMessage(),\n            'module': record.module,\n            'function': record.funcName,\n            'line': record.lineno,\n        }\n        if record.exc_info and record.exc_info[0] is not None:\n            log_entry['exception'] = self.formatException(record.exc_info)\n        if hasattr(record, 'extra_data'):\n            log_entry['data'] = record.extra_data\n        return json.dumps(log_entry, ensure_ascii=False)\n\n\ndef {{nama_fungsi_setup}}(name='app', level='INFO', output='stderr'):\n    \"\"\"Setup a JSON logger. Returns logger instance.\n    output: 'stderr', 'stdout', or file path.\n    \"\"\"\n    logger = logging.getLogger(name)\n    logger.setLevel(getattr(logging, level.upper(), logging.INFO))\n    handler = logging.StreamHandler(sys.stderr if output == 'stderr' else (sys.stdout if output == 'stdout' else open(output, 'a')))\n    handler.setFormatter({{nama_class}}())\n    logger.addHandler(handler)\n    return logger\n",
++      "sample_values": {
++        "nama_class": "JSONFormatter",
++        "nama_fungsi_setup": "setup_json_logger"
++      }
++    },
++    {
++      "id": "log_rotator",
++      "title": "Log Rotation Setup Helper",
++      "description": "Setup RotatingFileHandler + TimedRotatingFileHandler dengan satu fungsi.",
++      "imports": ["logging", "os"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "setup_log_rotation"},
++        {"name": "default_max_bytes", "label": "Default max bytes", "type": "int", "default": 10485760},
++        {"name": "default_backup_count", "label": "Default backup count", "type": "int", "default": 5}
++      ],
++      "code": "def {{nama_fungsi}}(log_file, level='INFO', max_bytes={{default_max_bytes}}, backup_count={{default_backup_count}}, mode='size', when='midnight'):\n    \"\"\"Setup rotating file logger.\n    mode='size': RotatingFileHandler (by file size).\n    mode='time': TimedRotatingFileHandler (by time: S/M/H/D/midnight).\n    Returns configured logger.\n    \"\"\"\n    logger = logging.getLogger(os.path.splitext(os.path.basename(log_file))[0])\n    logger.setLevel(getattr(logging, level.upper(), logging.INFO))\n    os.makedirs(os.path.dirname(log_file) or '.', exist_ok=True)\n    if mode == 'time':\n        from logging.handlers import TimedRotatingFileHandler\n        handler = TimedRotatingFileHandler(log_file, when=when, backupCount=backup_count)\n    else:\n        from logging.handlers import RotatingFileHandler\n        handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)\n    formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')\n    handler.setFormatter(formatter)\n    logger.addHandler(handler)\n    return logger\n",
++      "sample_values": {
++        "nama_fungsi": "setup_log_rotation",
++        "default_max_bytes": 10485760,
++        "default_backup_count": 5
++      }
++    },
++    {
++      "id": "context_logger",
++      "title": "Context-Aware Logger — with correlation ID",
++      "description": "Logger yang attach correlation ID / request ID ke setiap log entry. Berguna untuk tracing di distributed systems.",
++      "imports": ["logging", "uuid", "threading"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "ContextLogger"},
++        {"name": "id_key", "label": "Key untuk correlation ID", "type": "text", "default": "request_id"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Logger that attaches a correlation ID to every log entry.\n    Thread-safe: each thread gets its own context via threading.local().\n    \"\"\"\n    def __init__(self, name='app', id_key='{{id_key}}'):\n        self._logger = logging.getLogger(name)\n        self._id_key = id_key\n        self._local = threading.local()\n\n    def _get_ctx(self):\n        if not hasattr(self._local, 'context'):\n            self._local.context = {}\n        return self._local.context\n\n    def set_context(self, **kwargs):\n        \"\"\"Set context values for the current thread (e.g. request_id, user_id).\"\"\"\n        ctx = self._get_ctx()\n        ctx.update(kwargs)\n\n    def clear_context(self):\n        \"\"\"Clear all context for current thread.\"\"\"\n        self._local.context = {}\n\n    def new_correlation_id(self):\n        \"\"\"Generate and set a new correlation ID. Returns the ID.\"\"\"\n        cid = str(uuid.uuid4())[:8]\n        self.set_context(**{self._id_key: cid})\n        return cid\n\n    def _format_msg(self, msg):\n        ctx = self._get_ctx()\n        if ctx:\n            ctx_str = ' '.join('[%s=%s]' % (k, v) for k, v in ctx.items())\n            return ctx_str + ' ' + msg\n        return msg\n\n    def info(self, msg, *args, **kwargs):\n        self._logger.info(self._format_msg(msg), *args, **kwargs)\n\n    def warning(self, msg, *args, **kwargs):\n        self._logger.warning(self._format_msg(msg), *args, **kwargs)\n\n    def error(self, msg, *args, **kwargs):\n        self._logger.error(self._format_msg(msg), *args, **kwargs)\n\n    def debug(self, msg, *args, **kwargs):\n        self._logger.debug(self._format_msg(msg), *args, **kwargs)\n\n    def critical(self, msg, *args, **kwargs):\n        self._logger.critical(self._format_msg(msg), *args, **kwargs)\n",
++      "sample_values": {
++        "nama_class": "ContextLogger",
++        "id_key": "request_id"
++      }
++    },
++    {
++      "id": "metrics_collector",
++      "title": "Simple Metrics Collector",
++      "description": "Counter, gauge, histogram dasar. Thread-safe. Export ke dict untuk monitoring.",
++      "imports": ["threading", "time"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "MetricsCollector"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Simple metrics collector: counters, gauges, and histograms. Thread-safe.\"\"\"\n    def __init__(self):\n        self._counters = {}\n        self._gauges = {}\n        self._histograms = {}\n        self._lock = threading.Lock()\n\n    def counter(self, name, value=1):\n        \"\"\"Increment counter by value.\"\"\"\n        with self._lock:\n            self._counters[name] = self._counters.get(name, 0) + value\n\n    def get_counter(self, name):\n        return self._counters.get(name, 0)\n\n    def gauge(self, name, value):\n        \"\"\"Set gauge to value.\"\"\"\n        with self._lock:\n            self._gauges[name] = value\n\n    def get_gauge(self, name):\n        return self._gauges.get(name, 0)\n\n    def histogram(self, name, value):\n        \"\"\"Record a value in a histogram.\"\"\"\n        with self._lock:\n            if name not in self._histograms:\n                self._histograms[name] = []\n            self._histograms[name].append(value)\n\n    def get_histogram(self, name):\n        with self._lock:\n            data = list(self._histograms.get(name, []))\n        if not data:\n            return {'count': 0, 'min': 0, 'max': 0, 'mean': 0}\n        return {\n            'count': len(data),\n            'min': min(data),\n            'max': max(data),\n            'mean': sum(data) / len(data),\n        }\n\n    def export(self):\n        \"\"\"Export all metrics as a dict.\"\"\"\n        with self._lock:\n            return {\n                'counters': dict(self._counters),\n                'gauges': dict(self._gauges),\n                'histograms': {\n                    name: {'count': len(vals), 'min': min(vals) if vals else 0, 'max': max(vals) if vals else 0, 'mean': sum(vals)/len(vals) if vals else 0}\n                    for name, vals in self._histograms.items()\n                },\n            }\n\n    def reset(self):\n        with self._lock:\n            self._counters.clear()\n            self._gauges.clear()\n            self._histograms.clear()\n",
++      "sample_values": {
++        "nama_class": "MetricsCollector"
++      }
++    },
++    {
++      "id": "health_check",
++      "title": "Health Check Endpoint Helper",
++      "description": "Build health check status JSON. Cek dependencies (DB, cache, external APIs).",
++      "imports": ["time", "datetime"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "HealthChecker"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Health check aggregator. Register check functions and get overall status.\"\"\"\n    def __init__(self, app_name='app', version='1.0.0'):\n        self.app_name = app_name\n        self.version = version\n        self._checks = {}\n\n    def register(self, name, check_func, critical=True):\n        \"\"\"Register a health check.\n        check_func: callable that returns True/False or raises on failure.\n        critical: if True, failure makes overall status 'unhealthy'.\n        \"\"\"\n        self._checks[name] = {'func': check_func, 'critical': critical}\n\n    def run(self):\n        \"\"\"Run all checks. Returns health status dict.\"\"\"\n        results = {}\n        overall_healthy = True\n        for name, check in self._checks.items():\n            start = time.monotonic()\n            try:\n                result = check['func']()\n                ok = result is not False\n                error = None\n            except Exception as exc:\n                ok = False\n                error = str(exc)\n            elapsed_ms = round((time.monotonic() - start) * 1000, 2)\n            if not ok and check['critical']:\n                overall_healthy = False\n            results[name] = {\n                'status': 'healthy' if ok else 'unhealthy',\n                'response_time_ms': elapsed_ms,\n                'error': error,\n                'critical': check['critical'],\n            }\n        return {\n            'status': 'healthy' if overall_healthy else 'unhealthy',\n            'app': self.app_name,\n            'version': self.version,\n            'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),\n            'checks': results,\n        }\n",
++      "sample_values": {
++        "nama_class": "HealthChecker"
++      }
++    },
++    {
++      "id": "error_tracker",
++      "title": "Error Rate Tracker",
++      "description": "Track error count dan rate per interval. Berguna untuk alerting & monitoring.",
++      "imports": ["time", "threading"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "ErrorTracker"},
++        {"name": "window_seconds", "label": "Window size (detik)", "type": "int", "default": 60}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Track error counts and rates per time window. Thread-safe.\"\"\"\n    def __init__(self, window_seconds={{window_seconds}}):\n        self.window = window_seconds\n        self._errors = {}\n        self._lock = threading.Lock()\n\n    def record(self, error_type='error', message=''):\n        \"\"\"Record an error event.\"\"\"\n        now = time.time()\n        with self._lock:\n            if error_type not in self._errors:\n                self._errors[error_type] = []\n            self._errors[error_type].append({'time': now, 'message': message})\n            self._cleanup(error_type, now)\n\n    def _cleanup(self, error_type, now):\n        \"\"\"Remove entries older than window.\"\"\"\n        cutoff = now - self.window\n        self._errors[error_type] = [e for e in self._errors[error_type] if e['time'] > cutoff]\n\n    def count(self, error_type='error'):\n        \"\"\"Get error count in current window.\"\"\"\n        now = time.time()\n        with self._lock:\n            if error_type not in self._errors:\n                return 0\n            self._cleanup(error_type, now)\n            return len(self._errors[error_type])\n\n    def rate(self, error_type='error'):\n        \"\"\"Get error rate (errors per second) in current window.\"\"\"\n        c = self.count(error_type)\n        return c / self.window if self.window > 0 else 0\n\n    def total(self):\n        \"\"\"Get total errors across all types.\"\"\"\n        now = time.time()\n        with self._lock:\n            total = 0\n            for et in list(self._errors.keys()):\n                self._cleanup(et, now)\n                total += len(self._errors[et])\n            return total\n\n    def summary(self):\n        \"\"\"Get summary of all error types.\"\"\"\n        now = time.time()\n        result = {}\n        with self._lock:\n            for et in list(self._errors.keys()):\n                self._cleanup(et, now)\n                result[et] = {'count': len(self._errors[et]), 'rate': len(self._errors[et]) / self.window}\n        return result\n",
++      "sample_values": {
++        "nama_class": "ErrorTracker",
++        "window_seconds": 60
++      }
++    }
++  ]
++}
+diff --git a/pygen/templates/performance/_meta.json b/pygen/templates/performance/_meta.json
+new file mode 100644
+index 0000000..974c0f5
+--- /dev/null
++++ b/pygen/templates/performance/_meta.json
+@@ -0,0 +1 @@
++{"label": "Performance"}
+\ No newline at end of file
+diff --git a/pygen/templates/performance/performance.json b/pygen/templates/performance/performance.json
+new file mode 100644
+index 0000000..f5c9ed0
+--- /dev/null
++++ b/pygen/templates/performance/performance.json
+@@ -0,0 +1,68 @@
++{
++  "category": "performance",
++  "label": "Performance",
++  "templates": [
++    {
++      "id": "timer_decorator",
++      "title": "Execution Timer Decorator",
++      "description": "Decorator untuk ukur waktu eksekusi fungsi. Log ke stderr atau return elapsed time.",
++      "imports": ["time", "functools"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "timer"},
++        {"name": "output", "label": "Output mode", "type": "choice", "options": ["print", "return", "log"], "default": "print"}
++      ],
++      "code": "def {{nama_decorator}}(func=None, output='{{output}}', label=None):\n    \"\"\"Timer decorator. Measures wall-clock execution time.\n    output: 'print' (to stderr), 'return' (add elapsed to return tuple), 'log' (via logging).\n    Usage: @timer or @timer(output='return')\n    \"\"\"\n    import sys\n    import logging\n\n    def _decorator(fn):\n        @functools.wraps(fn)\n        def wrapper(*args, **kwargs):\n            start = time.perf_counter()\n            result = fn(*args, **kwargs)\n            elapsed = time.perf_counter() - start\n            name = label or fn.__name__\n            if output == 'print':\n                sys.stderr.write('[TIMER] %s: %.4f s\\n' % (name, elapsed))\n            elif output == 'log':\n                logging.getLogger(name).info('executed in %.4f s', elapsed)\n            elif output == 'return':\n                return result, elapsed\n            return result\n        return wrapper\n\n    if func is not None:\n        return _decorator(func)\n    return _decorator\n",
++      "sample_values": {
++        "nama_decorator": "timer",
++        "output": "print"
++      }
++    },
++    {
++      "id": "memoize",
++      "title": "Memoization Decorator — cache hasil fungsi",
++      "description": "Cache hasil fungsi berdasarkan argumen. Support maxsize dan TTL. Thread-safe.",
++      "imports": ["functools", "threading", "time"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "memoize"},
++        {"name": "maxsize", "label": "Max cache entries (0=unlimited)", "type": "int", "default": 128}
++      ],
++      "code": "def {{nama_decorator}}(func=None, maxsize={{maxsize}}, ttl=None):\n    \"\"\"Memoization decorator with optional maxsize and TTL.\n    Cache key based on positional + keyword args.\n    Usage: @memoize or @memoize(maxsize=256, ttl=60)\n    \"\"\"\n    def _decorator(fn):\n        cache = {}\n        timestamps = {}\n        lock = threading.Lock()\n        hits = [0]\n        misses = [0]\n\n        def _make_key(args, kwargs):\n            return (args, tuple(sorted(kwargs.items())))\n\n        @functools.wraps(fn)\n        def wrapper(*args, **kwargs):\n            key = _make_key(args, kwargs)\n            with lock:\n                if key in cache:\n                    if ttl is None or (time.time() - timestamps[key]) < ttl:\n                        hits[0] += 1\n                        return cache[key]\n                    else:\n                        del cache[key]\n                        del timestamps[key]\n                misses[0] += 1\n            result = fn(*args, **kwargs)\n            with lock:\n                cache[key] = result\n                timestamps[key] = time.time()\n                if maxsize and len(cache) > maxsize:\n                    oldest_key = min(timestamps, key=timestamps.get)\n                    del cache[oldest_key]\n                    del timestamps[oldest_key]\n            return result\n\n        def cache_clear():\n            with lock:\n                cache.clear()\n                timestamps.clear()\n                hits[0] = 0\n                misses[0] = 0\n\n        def cache_info():\n            return {'hits': hits[0], 'misses': misses[0], 'size': len(cache)}\n\n        wrapper.cache_clear = cache_clear\n        wrapper.cache_info = cache_info\n        return wrapper\n\n    if func is not None:\n        return _decorator(func)\n    return _decorator\n",
++      "sample_values": {
++        "nama_decorator": "memoize",
++        "maxsize": 128
++      }
++    },
++    {
++      "id": "profile_context",
++      "title": "Profiler Context Manager",
++      "description": "Context manager untuk profile eksekusi blok kode. Show CPU time + wall time + line-level stats.",
++      "imports": ["time", "sys"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "Profiler"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Simple profiler context manager.\n    Measures wall time, CPU time, and optional line-by-line counting.\n    Usage: with Profiler('my_block'): do_work()\n    \"\"\"\n    def __init__(self, label='block', verbose=True):\n        self.label = label\n        self.verbose = verbose\n        self.wall_time = 0\n        self.cpu_time = 0\n\n    def __enter__(self):\n        self._wall_start = time.perf_counter()\n        self._cpu_start = time.process_time()\n        return self\n\n    def __exit__(self, *exc):\n        self.wall_time = time.perf_counter() - self._wall_start\n        self.cpu_time = time.process_time() - self._cpu_start\n        if self.verbose:\n            msg = '[PROFILE] %s: wall=%.4fs cpu=%.4fs overhead=%.1f%%' % (\n                self.label, self.wall_time, self.cpu_time,\n                (1 - self.cpu_time / self.wall_time) * 100 if self.wall_time > 0 else 0\n            )\n            sys.stderr.write(msg + '\\n')\n        return False\n\n    @staticmethod\n    def timed(func, *args, **kwargs):\n        \"\"\"Time a single function call. Returns (result, wall_time, cpu_time).\"\"\"\n        wall_start = time.perf_counter()\n        cpu_start = time.process_time()\n        result = func(*args, **kwargs)\n        wall = time.perf_counter() - wall_start\n        cpu = time.process_time() - cpu_start\n        return result, wall, cpu\n",
++      "sample_values": {
++        "nama_class": "Profiler"
++      }
++    },
++    {
++      "id": "benchmark",
++      "title": "Micro-Benchmark Runner",
++      "description": "Jalankan fungsi N kali, kumpulkan statistik: min, max, mean, median, stdev.",
++      "imports": ["time", "statistics"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "benchmark"},
++        {"name": "default_iterations", "label": "Default iterations", "type": "int", "default": 100}
++      ],
++      "code": "def {{nama_fungsi}}(func, *args, iterations={{default_iterations}}, **kwargs):\n    \"\"\"Run function multiple times and collect timing statistics.\n    Returns dict with: min, max, mean, median, stdev, total, iterations, all_times.\n    \"\"\"\n    times = []\n    result = None\n    for _ in range(iterations):\n        start = time.perf_counter()\n        result = func(*args, **kwargs)\n        elapsed = time.perf_counter() - start\n        times.append(elapsed)\n    stats = {\n        'min': min(times),\n        'max': max(times),\n        'mean': sum(times) / len(times),\n        'median': statistics.median(times),\n        'stdev': statistics.stdev(times) if len(times) > 1 else 0,\n        'total': sum(times),\n        'iterations': iterations,\n        'all_times': times,\n        'result': result,\n    }\n    return stats\n\n\ndef compare(funcs, *args, iterations={{default_iterations}}, **kwargs):\n    \"\"\"Compare multiple functions. funcs: dict of {name: callable}.\n    Returns sorted list of {name, mean, min, max}.\n    \"\"\"\n    results = []\n    for name, fn in funcs.items():\n        stats = {{nama_fungsi}}(fn, *args, iterations=iterations, **kwargs)\n        results.append({\n            'name': name,\n            'mean': stats['mean'],\n            'min': stats['min'],\n            'max': stats['max'],\n            'median': stats['median'],\n        })\n    results.sort(key=lambda x: x['mean'])\n    return results\n",
++      "sample_values": {
++        "nama_fungsi": "benchmark",
++        "default_iterations": 100
++      }
++    }
++  ]
++}
+diff --git a/pygen/templates/serialization/_meta.json b/pygen/templates/serialization/_meta.json
+new file mode 100644
+index 0000000..e59bc59
+--- /dev/null
++++ b/pygen/templates/serialization/_meta.json
+@@ -0,0 +1 @@
++{"label": "Serialization"}
+\ No newline at end of file
+diff --git a/pygen/templates/serialization/serialization.json b/pygen/templates/serialization/serialization.json
+new file mode 100644
+index 0000000..dff5a94
+--- /dev/null
++++ b/pygen/templates/serialization/serialization.json
+@@ -0,0 +1,138 @@
++{
++  "category": "serialization",
++  "label": "Serialization",
++  "templates": [
++    {
++      "id": "pickle_safe",
++      "title": "Safe Pickle — load/dump dengan verifikasi hash",
++      "description": "Pickle dengan hash SHA256 anti-tamper. Serialize + integrity check.",
++      "imports": ["pickle", "hashlib", "os"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi_dump", "label": "Nama fungsi dump", "type": "identifier", "default": "safe_pickle_dump"},
++        {"name": "nama_fungsi_load", "label": "Nama fungsi load", "type": "identifier", "default": "safe_pickle_load"}
++      ],
++      "code": "def {{nama_fungsi_dump}}(data, filepath):\n    \"\"\"Pickle data to file with SHA256 integrity hash.\n    File format: [4 bytes hash length][hash bytes][pickled data]\n    \"\"\"\n    pickled = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)\n    digest = hashlib.sha256(pickled).digest()\n    hash_len = len(digest).to_bytes(4, 'big')\n    with open(filepath, 'wb') as f:\n        f.write(hash_len)\n        f.write(digest)\n        f.write(pickled)\n\n\ndef {{nama_fungsi_load}}(filepath):\n    \"\"\"Load pickled data with integrity verification.\n    Raises ValueError if file is tampered or corrupted.\n    \"\"\"\n    with open(filepath, 'rb') as f:\n        hash_len_bytes = f.read(4)\n        if len(hash_len_bytes) < 4:\n            raise ValueError('File corrupted: missing hash length')\n        hash_len = int.from_bytes(hash_len_bytes, 'big')\n        stored_hash = f.read(hash_len)\n        pickled = f.read()\n    computed_hash = hashlib.sha256(pickled).digest()\n    if computed_hash != stored_hash:\n        raise ValueError('Pickle integrity check failed — file may be tampered')\n    return pickle.loads(pickled)\n",
++      "sample_values": {
++        "nama_fungsi_dump": "safe_pickle_dump",
++        "nama_fungsi_load": "safe_pickle_load"
++      }
++    },
++    {
++      "id": "base64_tool",
++      "title": "Base64 Encode/Decode — string & file",
++      "description": "Encode/decode base64 untuk string dan file. Support URL-safe variant.",
++      "imports": ["base64"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi_enc", "label": "Nama fungsi encode", "type": "identifier", "default": "b64_encode"},
++        {"name": "nama_fungsi_dec", "label": "Nama fungsi decode", "type": "identifier", "default": "b64_decode"},
++        {"name": "nama_fungsi_file_enc", "label": "Nama fungsi file encode", "type": "identifier", "default": "b64_encode_file"},
++        {"name": "nama_fungsi_file_dec", "label": "Nama fungsi file decode", "type": "identifier", "default": "b64_decode_file"}
++      ],
++      "code": "def {{nama_fungsi_enc}}(text, url_safe=False):\n    \"\"\"Encode string to base64. Returns string.\"\"\"\n    data = text.encode('utf-8') if isinstance(text, str) else text\n    if url_safe:\n        return base64.urlsafe_b64encode(data).decode('ascii')\n    return base64.b64encode(data).decode('ascii')\n\n\ndef {{nama_fungsi_dec}}(encoded, url_safe=False):\n    \"\"\"Decode base64 string. Returns string.\"\"\"\n    data = encoded.encode('ascii') if isinstance(encoded, str) else encoded\n    if url_safe:\n        return base64.urlsafe_b64decode(data).decode('utf-8')\n    return base64.b64decode(data).decode('utf-8')\n\n\ndef {{nama_fungsi_file_enc}}(input_path, output_path, url_safe=False):\n    \"\"\"Encode file to base64 and write to output file.\"\"\"\n    with open(input_path, 'rb') as f:\n        data = f.read()\n    if url_safe:\n        encoded = base64.urlsafe_b64encode(data)\n    else:\n        encoded = base64.b64encode(data)\n    with open(output_path, 'wb') as f:\n        f.write(encoded)\n    return len(encoded)\n\n\ndef {{nama_fungsi_file_dec}}(input_path, output_path, url_safe=False):\n    \"\"\"Decode base64 file to original binary.\"\"\"\n    with open(input_path, 'rb') as f:\n        data = f.read()\n    if url_safe:\n        decoded = base64.urlsafe_b64decode(data)\n    else:\n        decoded = base64.b64decode(data)\n    with open(output_path, 'wb') as f:\n        f.write(decoded)\n    return len(decoded)\n",
++      "sample_values": {
++        "nama_fungsi_enc": "b64_encode",
++        "nama_fungsi_dec": "b64_decode",
++        "nama_fungsi_file_enc": "b64_encode_file",
++        "nama_fungsi_file_dec": "b64_decode_file"
++      }
++    },
++    {
++      "id": "binary_reader",
++      "title": "Binary Struct Reader",
++      "description": "Baca file binary dengan struct format string. Parse header, fields, arrays.",
++      "imports": ["struct"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "BinaryReader"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Read binary files using struct format strings.\n    Format codes: 'i'=int32, 'I'=uint32, 'h'=int16, 'f'=float32, 'd'=float64,\n                  'B'=uint8, 's'=char, etc. Prefix with '<' for little-endian, '>' for big-endian.\n    \"\"\"\n    def __init__(self, filepath, default_endian='<'):\n        self.filepath = filepath\n        self.default_endian = default_endian\n\n    def read_struct(self, fmt, offset=0):\n        \"\"\"Read struct at offset. fmt like '<3i2f' (3 ints, 2 floats).\"\"\"\n        full_fmt = fmt if fmt[0] in '<>@!' else self.default_endian + fmt\n        size = struct.calcsize(full_fmt)\n        with open(self.filepath, 'rb') as f:\n            f.seek(offset)\n            data = f.read(size)\n        if len(data) < size:\n            raise ValueError('Not enough data: expected ' + str(size) + ' bytes, got ' + str(len(data)))\n        return struct.unpack(full_fmt, data)\n\n    def read_array(self, item_fmt, count, offset=0):\n        \"\"\"Read array of count items.\"\"\"\n        full_fmt = item_fmt if item_fmt[0] in '<>@!' else self.default_endian + item_fmt\n        item_size = struct.calcsize(full_fmt)\n        results = []\n        with open(self.filepath, 'rb') as f:\n            f.seek(offset)\n            for _ in range(count):\n                data = f.read(item_size)\n                if len(data) < item_size:\n                    break\n                results.append(struct.unpack(full_fmt, data))\n        return results\n\n    def read_string(self, offset, length):\n        \"\"\"Read fixed-length string at offset.\"\"\"\n        with open(self.filepath, 'rb') as f:\n            f.seek(offset)\n            data = f.read(length)\n        return data.rstrip(b'\\x00').decode('utf-8', errors='replace')\n\n    def file_size(self):\n        \"\"\"Get file size in bytes.\"\"\"\n        import os\n        return os.path.getsize(self.filepath)\n",
++      "sample_values": {
++        "nama_class": "BinaryReader"
++      }
++    },
++    {
++      "id": "msgpack_lite",
++      "title": "MessagePack-lite — encode/decode sederhana",
++      "description": "Binary serialization sederhana tanpa library eksternal. Support int, str, bool, None, list, dict.",
++      "imports": [],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi_enc", "label": "Nama fungsi encode", "type": "identifier", "default": "msgpack_encode"},
++        {"name": "nama_fungsi_dec", "label": "Nama fungsi decode", "type": "identifier", "default": "msgpack_decode"}
++      ],
++      "code": "def {{nama_fungsi_enc}}(obj):\n    \"\"\"Encode Python object to bytes. Supports: None, bool, int, float, str, list, dict.\n    Format: [type_byte][payload]. NOT compatible with real MessagePack spec — simplified version.\n    \"\"\"\n    if obj is None:\n        return b'\\xc0'\n    if isinstance(obj, bool):\n        return b'\\xc3' if obj else b'\\xc2'\n    if isinstance(obj, int):\n        if -128 <= obj <= 127:\n            return b'\\xd0' + obj.to_bytes(1, 'big', signed=True)\n        if -32768 <= obj <= 32767:\n            return b'\\xd1' + obj.to_bytes(2, 'big', signed=True)\n        return b'\\xd2' + obj.to_bytes(4, 'big', signed=True)\n    if isinstance(obj, float):\n        import struct\n        return b'\\xcb' + struct.pack('>d', obj)\n    if isinstance(obj, str):\n        encoded = obj.encode('utf-8')\n        length = len(encoded)\n        if length < 32:\n            return bytes([0xa0 | length]) + encoded\n        return b'\\xd9' + length.to_bytes(1, 'big') + encoded\n    if isinstance(obj, (list, tuple)):\n        items = b''.join({{nama_fungsi_enc}}(item) for item in obj)\n        length = len(obj)\n        if length < 16:\n            return bytes([0x90 | length]) + items\n        return b'\\xdc' + length.to_bytes(2, 'big') + items\n    if isinstance(obj, dict):\n        pairs = b''\n        for k, v in obj.items():\n            pairs += {{nama_fungsi_enc}}(k) + {{nama_fungsi_enc}}(v)\n        length = len(obj)\n        if length < 16:\n            return bytes([0x80 | length]) + pairs\n        return b'\\xde' + length.to_bytes(2, 'big') + pairs\n    raise TypeError('Unsupported type: ' + type(obj).__name__)\n\n\ndef {{nama_fungsi_dec}}(data):\n    \"\"\"Decode bytes produced by {{nama_fungsi_enc}}. Returns (value, bytes_consumed).\"\"\"\n    if isinstance(data, (bytes, bytearray)):\n        result, _ = _msgpack_decode_at(data, 0)\n        return result\n    raise TypeError('Expected bytes, got ' + type(data).__name__)\n\n\ndef _msgpack_decode_at(data, pos):\n    b = data[pos]\n    if b == 0xc0:\n        return None, pos + 1\n    if b == 0xc2:\n        return False, pos + 1\n    if b == 0xc3:\n        return True, pos + 1\n    if b == 0xd0:\n        return int.from_bytes(data[pos+1:pos+2], 'big', signed=True), pos + 2\n    if b == 0xd1:\n        return int.from_bytes(data[pos+1:pos+3], 'big', signed=True), pos + 3\n    if b == 0xd2:\n        return int.from_bytes(data[pos+1:pos+5], 'big', signed=True), pos + 5\n    if b == 0xcb:\n        import struct\n        return struct.unpack('>d', data[pos+1:pos+9])[0], pos + 9\n    if 0xa0 <= b <= 0xbf:\n        length = b & 0x1f\n        return data[pos+1:pos+1+length].decode('utf-8'), pos + 1 + length\n    if b == 0xd9:\n        length = data[pos+1]\n        return data[pos+2:pos+2+length].decode('utf-8'), pos + 2 + length\n    if 0x90 <= b <= 0x9f:\n        count = b & 0x0f\n        pos += 1\n        items = []\n        for _ in range(count):\n            item, pos = _msgpack_decode_at(data, pos)\n            items.append(item)\n        return items, pos\n    if b == 0xdc:\n        count = int.from_bytes(data[pos+1:pos+3], 'big')\n        pos += 3\n        items = []\n        for _ in range(count):\n            item, pos = _msgpack_decode_at(data, pos)\n            items.append(item)\n        return items, pos\n    if 0x80 <= b <= 0x8f:\n        count = b & 0x0f\n        pos += 1\n        d = {}\n        for _ in range(count):\n            k, pos = _msgpack_decode_at(data, pos)\n            v, pos = _msgpack_decode_at(data, pos)\n            d[k] = v\n        return d, pos\n    if b == 0xde:\n        count = int.from_bytes(data[pos+1:pos+3], 'big')\n        pos += 3\n        d = {}\n        for _ in range(count):\n            k, pos = _msgpack_decode_at(data, pos)\n            v, pos = _msgpack_decode_at(data, pos)\n            d[k] = v\n        return d, pos\n    raise ValueError('Unknown msgpack byte: 0x' + hex(b))\n",
++      "sample_values": {
++        "nama_fungsi_enc": "msgpack_encode",
++        "nama_fungsi_dec": "msgpack_decode"
++      }
++    },
++    {
++      "id": "xml_to_dict",
++      "title": "XML → Dict Converter",
++      "description": "Parse XML ke nested dict. stdlib xml.etree.ElementTree. Handle atribut & text.",
++      "imports": ["xml.etree.ElementTree"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "xml_to_dict"},
++        {"name": "attr_prefix", "label": "Prefix untuk atribut", "type": "text", "default": "@"},
++        {"name": "text_key", "label": "Key untuk text content", "type": "text", "default": "#text"}
++      ],
++      "code": "def {{nama_fungsi}}(xml_input, attr_prefix='{{attr_prefix}}', text_key='{{text_key}}'):\n    \"\"\"Convert XML string or file path to nested dict.\n    Attributes prefixed with attr_prefix (default '@').\n    Text content stored under text_key (default '#text').\n    Repeated tags become lists.\n    \"\"\"\n    if isinstance(xml_input, str) and not xml_input.strip().startswith('<'):\n        tree = xml.etree.ElementTree.parse(xml_input)\n        root = tree.getroot()\n    else:\n        root = xml.etree.ElementTree.fromstring(xml_input)\n    return _element_to_dict(root, attr_prefix, text_key)\n\n\ndef _element_to_dict(elem, attr_prefix, text_key):\n    result = {}\n    for attr_name, attr_val in elem.attrib.items():\n        result[attr_prefix + attr_name] = attr_val\n    children = list(elem)\n    if not children:\n        text = (elem.text or '').strip()\n        if result:\n            if text:\n                result[text_key] = text\n        else:\n            return text if text else None\n    else:\n        for child in children:\n            child_dict = _element_to_dict(child, attr_prefix, text_key)\n            tag = child.tag\n            if tag in result:\n                existing = result[tag]\n                if isinstance(existing, list):\n                    existing.append(child_dict)\n                else:\n                    result[tag] = [existing, child_dict]\n            else:\n                result[tag] = child_dict\n        text = (elem.text or '').strip()\n        if text:\n            result[text_key] = text\n    return result\n",
++      "sample_values": {
++        "nama_fungsi": "xml_to_dict",
++        "attr_prefix": "@",
++        "text_key": "#text"
++      }
++    },
++    {
++      "id": "dict_to_xml",
++      "title": "Dict → XML Converter",
++      "description": "Build XML string dari nested dict. Kebalikan dari xml_to_dict.",
++      "imports": ["xml.etree.ElementTree"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "dict_to_xml"},
++        {"name": "attr_prefix", "label": "Prefix untuk atribut", "type": "text", "default": "@"},
++        {"name": "text_key", "label": "Key untuk text content", "type": "text", "default": "#text"}
++      ],
++      "code": "def {{nama_fungsi}}(data, root_tag='root', attr_prefix='{{attr_prefix}}', text_key='{{text_key}}'):\n    \"\"\"Convert nested dict to XML string.\n    Keys starting with attr_prefix become attributes.\n    Key matching text_key becomes element text.\n    List values create repeated elements.\n    \"\"\"\n    root = _build_element(root_tag, data, attr_prefix, text_key)\n    return xml.etree.ElementTree.tostring(root, encoding='unicode', xml_declaration=False)\n\n\ndef _build_element(tag, data, attr_prefix, text_key):\n    import xml.etree.ElementTree as ET\n    elem = ET.Element(tag)\n    if isinstance(data, dict):\n        for key, value in data.items():\n            if key.startswith(attr_prefix):\n                attr_name = key[len(attr_prefix):]\n                elem.set(attr_name, str(value))\n            elif key == text_key:\n                elem.text = str(value)\n            elif isinstance(value, list):\n                for item in value:\n                    child = _build_element(key, item, attr_prefix, text_key)\n                    elem.append(child)\n            elif isinstance(value, dict):\n                child = _build_element(key, value, attr_prefix, text_key)\n                elem.append(child)\n            else:\n                child = ET.Element(key)\n                child.text = str(value) if value is not None else ''\n                elem.append(child)\n    elif data is not None:\n        elem.text = str(data)\n    return elem\n",
++      "sample_values": {
++        "nama_fungsi": "dict_to_xml",
++        "attr_prefix": "@",
++        "text_key": "#text"
++      }
++    },
++    {
++      "id": "csv_dialect_detector",
++      "title": "CSV Dialect Auto-Detector",
++      "description": "Deteksi delimiter, quotechar, dan dialect CSV secara otomatis dari sample baris.",
++      "imports": ["csv"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "detect_csv_dialect"},
++        {"name": "sample_lines", "label": "Jumlah baris sample", "type": "int", "default": 10}
++      ],
++      "code": "def {{nama_fungsi}}(filepath_or_text, sample_lines={{sample_lines}}):\n    \"\"\"Auto-detect CSV dialect (delimiter, quotechar, etc).\n    Accepts file path or raw text string.\n    Returns dict with dialect info: delimiter, quotechar, has_header, sample.\n    \"\"\"\n    if hasattr(filepath_or_text, 'read'):\n        text = filepath_or_text.read()\n    elif isinstance(filepath_or_text, str) and '\\n' in filepath_or_text:\n        text = filepath_or_text\n    else:\n        with open(filepath_or_text, 'r', encoding='utf-8') as f:\n            text = f.read()\n    lines = text.splitlines()[:sample_lines]\n    sample = '\\n'.join(lines)\n    try:\n        dialect = csv.Sniffer().sniff(sample, delimiters=',;\\t|')\n        has_header = csv.Sniffer().has_header(sample)\n    except csv.Error:\n        dialect = csv.excel\n        has_header = True\n    return {\n        'delimiter': dialect.delimiter,\n        'quotechar': dialect.quotechar,\n        'doublequote': dialect.doublequote,\n        'skipinitialspace': dialect.skipinitialspace,\n        'has_header': has_header,\n        'sample': lines[0] if lines else '',\n        'column_count': len(lines[0].split(dialect.delimiter)) if lines else 0,\n    }\n",
++      "sample_values": {
++        "nama_fungsi": "detect_csv_dialect",
++        "sample_lines": 10
++      }
++    },
++    {
++      "id": "line_protocol",
++      "title": "Line Protocol — NDJSON / JSONL Reader-Writer",
++      "description": "Baca/tulis file JSON per baris (Newline Delimited JSON). Streaming-friendly.",
++      "imports": ["json"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "LineProtocol"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Newline Delimited JSON (NDJSON/JSONL) reader and writer.\n    Each line is a separate JSON object. Streaming-friendly.\n    \"\"\"\n    def __init__(self, filepath, mode='r', encoding='utf-8'):\n        self.filepath = filepath\n        self.mode = mode\n        self.encoding = encoding\n        self._file = None\n\n    def __enter__(self):\n        self._file = open(self.filepath, self.mode, encoding=self.encoding)\n        return self\n\n    def __exit__(self, *exc):\n        if self._file:\n            self._file.close()\n\n    def read_all(self):\n        \"\"\"Read all lines, parse each as JSON. Returns list of objects.\"\"\"\n        results = []\n        with open(self.filepath, 'r', encoding=self.encoding) as f:\n            for line in f:\n                line = line.strip()\n                if line:\n                    results.append(json.loads(line))\n        return results\n\n    def read_stream(self):\n        \"\"\"Yield parsed JSON objects one by one (generator).\"\"\"\n        with open(self.filepath, 'r', encoding=self.encoding) as f:\n            for line in f:\n                line = line.strip()\n                if line:\n                    yield json.loads(line)\n\n    def write_all(self, items):\n        \"\"\"Write list of objects as NDJSON.\"\"\"\n        with open(self.filepath, 'w', encoding=self.encoding) as f:\n            for item in items:\n                f.write(json.dumps(item, ensure_ascii=False) + '\\n')\n\n    def append(self, item):\n        \"\"\"Append one JSON object as a new line.\"\"\"\n        with open(self.filepath, 'a', encoding=self.encoding) as f:\n            f.write(json.dumps(item, ensure_ascii=False) + '\\n')\n\n    @staticmethod\n    def count_lines(filepath, encoding='utf-8'):\n        \"\"\"Count number of non-empty lines.\"\"\"\n        count = 0\n        with open(filepath, 'r', encoding=encoding) as f:\n            for line in f:\n                if line.strip():\n                    count += 1\n        return count\n",
++      "sample_values": {
++        "nama_class": "LineProtocol"
++      }
++    }
++  ]
++}
+diff --git a/pygen/templates/testing/_meta.json b/pygen/templates/testing/_meta.json
+new file mode 100644
+index 0000000..60349c9
+--- /dev/null
++++ b/pygen/templates/testing/_meta.json
+@@ -0,0 +1 @@
++{"label": "Testing"}
+\ No newline at end of file
+diff --git a/pygen/templates/testing/testing.json b/pygen/templates/testing/testing.json
+new file mode 100644
+index 0000000..2bb19e7
+--- /dev/null
++++ b/pygen/templates/testing/testing.json
+@@ -0,0 +1,96 @@
++{
++  "category": "testing",
++  "label": "Testing",
++  "templates": [
++    {
++      "id": "mock_factory",
++      "title": "Mock Object Factory",
++      "description": "Auto-generate mock object dengan atribut dan method yang bisa dipanggil. stdlib only.",
++      "imports": [],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "MockObject"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Simple mock object. Records all attribute access and method calls.\n    Usage:\n        m = MockObject(name='test')\n        m.some_method(1, 2)\n        assert m.some_method.calls == [(1, 2)]\n    \"\"\"\n    def __init__(self, name='mock', **attrs):\n        self._name = name\n        self._calls = {}\n        self._attrs = dict(attrs)\n        self._return_values = {}\n\n    def __getattr__(self, name):\n        if name.startswith('_'):\n            raise AttributeError(name)\n        if name in self._attrs:\n            return self._attrs[name]\n        def _mock_method(*args, **kwargs):\n            if name not in self._calls:\n                self._calls[name] = []\n            self._calls[name].append((args, kwargs))\n            return self._return_values.get(name)\n        _mock_method.__name__ = name\n        return _mock_method\n\n    def set_return(self, method_name, value):\n        \"\"\"Set return value for a mock method.\"\"\"\n        self._return_values[method_name] = value\n        return self\n\n    def call_count(self, method_name):\n        \"\"\"How many times a method was called.\"\"\"\n        return len(self._calls.get(method_name, []))\n\n    @property\n    def calls(self):\n        return dict(self._calls)\n\n    def reset(self):\n        self._calls.clear()\n",
++      "sample_values": {
++        "nama_class": "MockObject"
++      }
++    },
++    {
++      "id": "fixture_data_generator",
++      "title": "Test Fixture Data Generator",
++      "description": "Generate data dummy realistis untuk testing: user, product, order, address. Tanpa library eksternal.",
++      "imports": ["random", "string"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "FixtureGenerator"},
++        {"name": "seed", "label": "Random seed (0=acak)", "type": "int", "default": 42}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Generate realistic test fixture data. Deterministic with seed.\"\"\"\n    FIRST_NAMES = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Hank', 'Ivy', 'Jack']\n    LAST_NAMES = ['Smith', 'Johnson', 'Brown', 'Davis', 'Wilson', 'Moore', 'Taylor', 'Anderson', 'Thomas', 'White']\n    DOMAINS = ['example.com', 'test.org', 'demo.net', 'sample.io']\n    STREETS = ['Main St', 'Oak Ave', 'Elm St', 'Pine Rd', 'Cedar Ln', 'Maple Dr']\n    CITIES = ['Jakarta', 'Bandung', 'Surabaya', 'Medan', 'Semarang', 'Makassar']\n\n    def __init__(self, seed={{seed}}):\n        self._rng = random.Random(seed)\n\n    def _pick(self, lst):\n        return self._rng.choice(lst)\n\n    def user(self):\n        first = self._pick(self.FIRST_NAMES)\n        last = self._pick(self.LAST_NAMES)\n        domain = self._pick(self.DOMAINS)\n        return {\n            'id': self._rng.randint(1, 99999),\n            'first_name': first,\n            'last_name': last,\n            'email': (first + '.' + last + '@' + domain).lower(),\n            'age': self._rng.randint(18, 70),\n        }\n\n    def product(self):\n        adjectives = ['Premium', 'Basic', 'Pro', 'Ultra', 'Mini', 'Mega']\n        nouns = ['Widget', 'Gadget', 'Tool', 'Device', 'Kit', 'Pack']\n        return {\n            'id': self._rng.randint(1, 99999),\n            'name': self._pick(adjectives) + ' ' + self._pick(nouns),\n            'price': round(self._rng.uniform(5, 500), 2),\n            'stock': self._rng.randint(0, 1000),\n        }\n\n    def order(self):\n        return {\n            'id': self._rng.randint(1, 99999),\n            'user_id': self._rng.randint(1, 99999),\n            'total': round(self._rng.uniform(10, 2000), 2),\n            'status': self._pick(['pending', 'paid', 'shipped', 'delivered', 'cancelled']),\n            'items_count': self._rng.randint(1, 10),\n        }\n\n    def address(self):\n        return {\n            'street': str(self._rng.randint(1, 200)) + ' ' + self._pick(self.STREETS),\n            'city': self._pick(self.CITIES),\n            'postal_code': str(self._rng.randint(10000, 99999)),\n            'country': 'Indonesia',\n        }\n\n    def batch(self, generator_func, count):\n        \"\"\"Generate multiple records. generator_func: self.user, self.product, etc.\"\"\"\n        return [generator_func() for _ in range(count)]\n",
++      "sample_values": {
++        "nama_class": "FixtureGenerator",
++        "seed": 42
++      }
++    },
++    {
++      "id": "assert_helpers",
++      "title": "Assertion Helper Collection",
++      "description": "Koleksi assertion helpers: assert_approx, assert_subset, assert_between, dll.",
++      "imports": [],
++      "requires": {},
++      "fields": [
++        {"name": "prefix", "label": "Prefix fungsi", "type": "identifier", "default": "assert_"}
++      ],
++      "code": "def {{prefix}}approx(a, b, tolerance=1e-6, msg=None):\n    \"\"\"Assert two floats are approximately equal.\"\"\"\n    if abs(a - b) > tolerance:\n        raise AssertionError(msg or 'Expected %s ≈ %s (tolerance=%s), got diff=%s' % (a, b, tolerance, abs(a - b)))\n\n\ndef {{prefix}}subset(sub, superset, msg=None):\n    \"\"\"Assert sub is a subset of superset (works for lists and dicts).\"\"\"\n    if isinstance(sub, dict) and isinstance(superset, dict):\n        for k, v in sub.items():\n            if k not in superset:\n                raise AssertionError(msg or 'Key %r missing from dict' % k)\n            if superset[k] != v:\n                raise AssertionError(msg or 'Key %r: expected %r, got %r' % (k, v, superset[k]))\n    else:\n        for item in sub:\n            if item not in superset:\n                raise AssertionError(msg or 'Item %r not found in collection' % (item,))\n\n\ndef {{prefix}}between(value, low, high, msg=None):\n    \"\"\"Assert low <= value <= high.\"\"\"\n    if not (low <= value <= high):\n        raise AssertionError(msg or 'Expected %s between %s and %s' % (value, low, high))\n\n\ndef {{prefix}}type(obj, expected_type, msg=None):\n    \"\"\"Assert obj is instance of expected_type.\"\"\"\n    if not isinstance(obj, expected_type):\n        raise AssertionError(msg or 'Expected type %s, got %s' % (expected_type.__name__, type(obj).__name__))\n\n\ndef {{prefix}}raises(exception_class, func, *args, **kwargs):\n    \"\"\"Assert that func(*args, **kwargs) raises the expected exception.\n    Returns the exception instance for further inspection.\n    \"\"\"\n    try:\n        func(*args, **kwargs)\n    except exception_class as exc:\n        return exc\n    except Exception as exc:\n        raise AssertionError('Expected %s but got %s: %s' % (exception_class.__name__, type(exc).__name__, exc))\n    raise AssertionError('Expected %s but no exception was raised' % exception_class.__name__)\n\n\ndef {{prefix}}length(collection, expected, msg=None):\n    \"\"\"Assert len(collection) == expected.\"\"\"\n    actual = len(collection)\n    if actual != expected:\n        raise AssertionError(msg or 'Expected length %d, got %d' % (expected, actual))\n",
++      "sample_values": {
++        "prefix": "assert_"
++      }
++    },
++    {
++      "id": "random_test_data",
++      "title": "Random Test Data Generator",
++      "description": "Generator data random untuk testing: nama, email, phone, address, UUID, date. stdlib only.",
++      "imports": ["random", "string", "uuid", "datetime"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "RandomData"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Generate random test data using only stdlib.\"\"\"\n    def __init__(self, seed=None):\n        self._rng = random.Random(seed)\n\n    def name(self):\n        first = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Hugo', 'Iris', 'Jack',\n                 'Kara', 'Leo', 'Mia', 'Noah', 'Olga', 'Paul', 'Quinn', 'Rosa', 'Sam', 'Tina']\n        last = ['Adams', 'Brown', 'Clark', 'Davis', 'Evans', 'Fisher', 'Garcia', 'Harris', 'Ivanov', 'Jones']\n        return self._rng.choice(first) + ' ' + self._rng.choice(last)\n\n    def email(self):\n        domains = ['test.com', 'example.org', 'demo.io', 'sample.net']\n        word = ''.join(self._rng.choices(string.ascii_lowercase, k=8))\n        return word + '@' + self._rng.choice(domains)\n\n    def phone(self, country_code='+62'):\n        digits = ''.join(self._rng.choices(string.digits, k=10))\n        return country_code + digits\n\n    def uuid(self):\n        return str(uuid.UUID(int=self._rng.getrandbits(128), version=4))\n\n    def date(self, start_year=2000, end_year=2025):\n        start = datetime.date(start_year, 1, 1)\n        end = datetime.date(end_year, 12, 31)\n        delta = (end - start).days\n        random_days = self._rng.randint(0, delta)\n        return (start + datetime.timedelta(days=random_days)).isoformat()\n\n    def text(self, words=10):\n        word_list = ['lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing',\n                     'elit', 'sed', 'do', 'eiusmod', 'tempor', 'incididunt', 'ut', 'labore']\n        return ' '.join(self._rng.choices(word_list, k=words))\n\n    def integer(self, low=0, high=10000):\n        return self._rng.randint(low, high)\n\n    def float_val(self, low=0.0, high=1000.0, decimals=2):\n        return round(self._rng.uniform(low, high), decimals)\n\n    def boolean(self, true_rate=0.5):\n        return self._rng.random() < true_rate\n\n    def choice(self, options):\n        return self._rng.choice(options)\n",
++      "sample_values": {
++        "nama_class": "RandomData"
++      }
++    },
++    {
++      "id": "property_test_runner",
++      "title": "Property-Based Test Helper",
++      "description": "Test invariant: untuk setiap input random, properti tertentu harus terpenuhi. Mini hypothesis.",
++      "imports": ["random"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "PropertyTester"},
++        {"name": "default_cases", "label": "Default jumlah test cases", "type": "int", "default": 100}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Property-based testing helper. Generate random inputs and verify invariants.\n    Usage:\n        pt = PropertyTester()\n        pt.check(lambda x: abs(x) >= 0, pt.gen_int, 'abs always positive')\n    \"\"\"\n    def __init__(self, seed=None):\n        self._rng = random.Random(seed)\n\n    def gen_int(self, low=-1000, high=1000):\n        return lambda: self._rng.randint(low, high)\n\n    def gen_float(self, low=-1000.0, high=1000.0):\n        return lambda: self._rng.uniform(low, high)\n\n    def gen_string(self, min_len=0, max_len=50):\n        def _gen():\n            length = self._rng.randint(min_len, max_len)\n            chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 '\n            return ''.join(self._rng.choices(chars, k=length))\n        return _gen\n\n    def gen_list(self, element_gen, min_len=0, max_len=20):\n        def _gen():\n            length = self._rng.randint(min_len, max_len)\n            return [element_gen() for _ in range(length)]\n        return _gen\n\n    def gen_choice(self, options):\n        return lambda: self._rng.choice(options)\n\n    def check(self, predicate, generator, label='property', cases={{default_cases}}):\n        \"\"\"Run predicate(generator()) N times. Raises on first failure with counterexample.\"\"\"\n        failures = []\n        for i in range(cases):\n            value = generator()\n            try:\n                result = predicate(value)\n            except Exception as exc:\n                failures.append((i, value, str(exc)))\n                break\n            if not result:\n                failures.append((i, value, 'predicate returned False'))\n                break\n        if failures:\n            idx, val, msg = failures[0]\n            raise AssertionError(\n                'Property \"%s\" failed at case #%d: input=%r, reason=%s' % (label, idx, val, msg)\n            )\n        return True\n\n    def check_no_exception(self, func, generator, label='no_exception', cases={{default_cases}}):\n        \"\"\"Run func(generator()) N times, assert no exception raised.\"\"\"\n        for i in range(cases):\n            value = generator()\n            try:\n                func(value)\n            except Exception as exc:\n                raise AssertionError(\n                    'Property \"%s\" raised %s at case #%d: input=%r' % (label, type(exc).__name__, i, value)\n                )\n        return True\n",
++      "sample_values": {
++        "nama_class": "PropertyTester",
++        "default_cases": 100
++      }
++    },
++    {
++      "id": "test_suite_runner",
++      "title": "Test Suite Discovery & Runner",
++      "description": "Auto-discover test files, run, dan report hasil. stdlib unittest compatible.",
++      "imports": ["unittest", "os", "sys", "io"],
++      "requires": {},
++      "fields": [
++        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "TestSuiteRunner"},
++        {"name": "pattern", "label": "File pattern", "type": "text", "default": "test_*.py"}
++      ],
++      "code": "class {{nama_class}}:\n    \"\"\"Auto-discover and run test files. Stdlib unittest compatible.\"\"\"\n    def __init__(self, test_dir='.', pattern='{{pattern}}'):\n        self.test_dir = os.path.abspath(test_dir)\n        self.pattern = pattern\n\n    def discover(self):\n        \"\"\"Discover test modules. Returns unittest.TestSuite.\"\"\"\n        loader = unittest.TestLoader()\n        return loader.discover(self.test_dir, pattern=self.pattern)\n\n    def run(self, suite=None, verbosity=1):\n        \"\"\"Run test suite. Returns dict with results summary.\"\"\"\n        if suite is None:\n            suite = self.discover()\n        stream = io.StringIO()\n        runner = unittest.TextTestRunner(stream=stream, verbosity=verbosity)\n        result = runner.run(suite)\n        return {\n            'tests_run': result.testsRun,\n            'failures': len(result.failures),\n            'errors': len(result.errors),\n            'skipped': len(result.skipped),\n            'successful': result.testsRun - len(result.failures) - len(result.errors) - len(result.skipped),\n            'output': stream.getvalue(),\n            'passed': result.wasSuccessful(),\n        }\n\n    def run_quick(self):\n        \"\"\"Quick summary: run tests, return pass/fail count.\"\"\"\n        result = self.run(verbosity=0)\n        return 'PASS' if result['passed'] else 'FAIL (%d failures, %d errors)' % (result['failures'], result['errors'])\n",
++      "sample_values": {
++        "nama_class": "TestSuiteRunner",
++        "pattern": "test_*.py"
++      }
++    }
++  ]
++}
