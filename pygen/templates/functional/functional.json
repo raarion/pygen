@@ -1,0 +1,98 @@
+{
+  "category": "functional",
+  "label": "Functional Programming",
+  "templates": [
+    {
+      "id": "pipe",
+      "title": "Pipe Operator — data lewat serangkaian fungsi",
+      "description": "pipe(data, f1, f2, f3) = f3(f2(f1(data))). Unix pipe style, left to right.",
+      "imports": ["functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi pipe", "type": "identifier", "default": "pipe"},
+        {"name": "nama_fungsi_thread", "label": "Nama fungsi thread-first", "type": "identifier", "default": "thread_first"}
+      ],
+      "code": "def {{nama_fungsi}}(value, *functions):\n    \"\"\"Pipe value through a series of functions. Left to right.\n    pipe(data, f1, f2, f3) = f3(f2(f1(data)))\n    \"\"\"\n    result = value\n    for fn in functions:\n        result = fn(result)\n    return result\n\n\ndef {{nama_fungsi_thread}}(value, *operations):\n    \"\"\"Thread-first macro style. Each operation is (func, *args).\n    thread_first(data, (f1, arg1), (f2, arg2)) = f2(f1(data, arg1), arg2)\n    \"\"\"\n    result = value\n    for op in operations:\n        if callable(op):\n            result = op(result)\n        elif isinstance(op, (list, tuple)):\n            fn = op[0]\n            args = op[1:]\n            result = fn(result, *args)\n        else:\n            raise TypeError('Expected callable or (func, *args) tuple, got %s' % type(op))\n    return result\n\n\ndef P(val):\n    \"\"\"Shorthand alias for pipe. Usage: P(data) | f1 | f2.\"\"\"\n    class PipeProxy:\n        def __init__(self, value):\n            self._value = value\n        def __or__(self, func):\n            return PipeProxy(func(self._value))\n        def __repr__(self):\n            return repr(self._value)\n        def result(self):\n            return self._value\n    return PipeProxy(val)\n",
+      "sample_values": {
+        "nama_fungsi": "pipe",
+        "nama_fungsi_thread": "thread_first"
+      }
+    },
+    {
+      "id": "compose",
+      "title": "Function Composer — f(g(x)) right-to-left",
+      "description": "compose(f, g, h)(x) = f(g(h(x))). Komposisi fungsi mathematical style, right to left.",
+      "imports": ["functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi compose", "type": "identifier", "default": "compose"},
+        {"name": "nama_fungsi_pipe", "label": "Nama fungsi compose (left-to-right)", "type": "identifier", "default": "compose_left"}
+      ],
+      "code": "def {{nama_fungsi}}(*functions):\n    \"\"\"Compose functions right-to-left.\n    compose(f, g, h)(x) = f(g(h(x)))\n    \"\"\"\n    def composed(value):\n        result = value\n        for fn in reversed(functions):\n            result = fn(result)\n        return result\n    if functions:\n        functools.update_wrapper(composed, functions[0])\n    return composed\n\n\ndef {{nama_fungsi_pipe}}(*functions):\n    \"\"\"Compose functions left-to-right (pipe style).\n    compose_left(f, g, h)(x) = h(g(f(x)))\n    \"\"\"\n    def composed(value):\n        result = value\n        for fn in functions:\n            result = fn(result)\n        return result\n    if functions:\n        functools.update_wrapper(composed, functions[0])\n    return composed\n\n\ndef identity(x):\n    \"\"\"Identity function — returns input unchanged.\"\"\"\n    return x\n\n\ndef constant(value):\n    \"\"\"Return a function that always returns the given value.\"\"\"\n    return lambda *args, **kwargs: value\n",
+      "sample_values": {
+        "nama_fungsi": "compose",
+        "nama_fungsi_pipe": "compose_left"
+      }
+    },
+    {
+      "id": "curry",
+      "title": "Currying Decorator",
+      "description": "Transform fungsi multi-argumen jadi curried: add(1)(2)(3). Partial application otomatis.",
+      "imports": ["functools", "inspect"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "curry"}
+      ],
+      "code": "def {{nama_decorator}}(func=None, arity=None):\n    \"\"\"Currying decorator. Transforms multi-arg function into curried form.\n    @curry\n    def add(a, b, c): return a + b + c\n    add(1)(2)(3) == 6\n    add(1, 2)(3) == 6\n    add(1)(2, 3) == 6\n    \"\"\"\n    def decorator(fn):\n        n = arity if arity is not None else len(inspect.signature(fn).parameters)\n\n        @functools.wraps(fn)\n        def curried(*args, **kwargs):\n            if len(args) + len(kwargs) >= n:\n                return fn(*args, **kwargs)\n            def next_curried(*more_args, **more_kwargs):\n                return curried(*(args + more_args), **dict(kwargs, **more_kwargs))\n            return next_curried\n\n        curried._arity = n\n        return curried\n\n    if func is not None:\n        return decorator(func)\n    return decorator\n",
+      "sample_values": {
+        "nama_decorator": "curry"
+      }
+    },
+    {
+      "id": "partial_right",
+      "title": "Right Partial Application",
+      "description": "Applikasikan argumen dari kanan. partial_right(fn, 3, 4) — sisa argumen dari kiri.",
+      "imports": ["functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "partial_right"}
+      ],
+      "code": "def {{nama_fungsi}}(func, *right_args, **right_kwargs):\n    \"\"\"Partial application from the right.\n    partial_right(fn, 3, 4)(1, 2) == fn(1, 2, 3, 4)\n    Unlike functools.partial which binds from the left.\n    \"\"\"\n    @functools.wraps(func)\n    def wrapper(*left_args, **left_kwargs):\n        merged_kwargs = dict(left_kwargs)\n        merged_kwargs.update(right_kwargs)\n        return func(*(left_args + right_args), **merged_kwargs)\n    return wrapper\n\n\ndef flip(func):\n    \"\"\"Flip the first two arguments of a function.\n    flip(f)(a, b) == f(b, a)\n    \"\"\"\n    @functools.wraps(func)\n    def wrapper(a, b, *args, **kwargs):\n        return func(b, a, *args, **kwargs)\n    return wrapper\n\n\ndef unary(func):\n    \"\"\"Wrap function to accept only one argument.\n    unary(fn)(x, y, z) == fn(x)\n    \"\"\"\n    @functools.wraps(func)\n    def wrapper(arg):\n        return func(arg)\n    return wrapper\n\n\ndef n_ary(func, n):\n    \"\"\"Wrap function to accept exactly n arguments.\n    n_ary(fn, 2)(a, b, c) == fn(a, b)\n    \"\"\"\n    @functools.wraps(func)\n    def wrapper(*args):\n        return func(*args[:n])\n    return wrapper\n",
+      "sample_values": {
+        "nama_fungsi": "partial_right"
+      }
+    },
+    {
+      "id": "maybe",
+      "title": "Maybe Monad Lite — handle None chain",
+      "description": "Maybe(data).get('key').get('sub').value — chain tanpa NullPointerException. Jika None di tengah, return None.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "Maybe"},
+        {"name": "nama_fungsi_just", "label": "Nama fungsi Just constructor", "type": "identifier", "default": "Just"},
+        {"name": "nama_fungsi_nothing", "label": "Nama fungsi Nothing constructor", "type": "identifier", "default": "Nothing"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Maybe monad. Wraps a value that might be None.\n    Chains operations safely — if value is None, all subsequent ops return Nothing.\n    \"\"\"\n    def __init__(self, value=None):\n        self._value = value\n\n    @property\n    def value(self):\n        return self._value\n\n    @property\n    def is_some(self):\n        return self._value is not None\n\n    @property\n    def is_none(self):\n        return self._value is None\n\n    def get(self, key, default=None):\n        \"\"\"Dict key access, safe against None.\"\"\"\n        if self._value is None:\n            return {{nama_class}}(None)\n        try:\n            if isinstance(self._value, dict):\n                return {{nama_class}}(self._value.get(key, default))\n            return {{nama_class}}(getattr(self._value, key, default))\n        except (TypeError, AttributeError):\n            return {{nama_class}}(None)\n\n    def map(self, func):\n        \"\"\"Apply function to wrapped value if not None.\"\"\"\n        if self._value is None:\n            return {{nama_class}}(None)\n        try:\n            return {{nama_class}}(func(self._value))\n        except Exception:\n            return {{nama_class}}(None)\n\n    def flat_map(self, func):\n        \"\"\"Like map but func should return a Maybe.\"\"\"\n        if self._value is None:\n            return {{nama_class}}(None)\n        result = func(self._value)\n        if isinstance(result, {{nama_class}}):\n            return result\n        return {{nama_class}}(result)\n\n    def or_else(self, default):\n        \"\"\"Return value or default if None.\"\"\"\n        return self._value if self._value is not None else default\n\n    def __repr__(self):\n        return 'Maybe(%r)' % (self._value,)\n\n    def __eq__(self, other):\n        if isinstance(other, {{nama_class}}):\n            return self._value == other._value\n        return self._value == other\n\n\ndef {{nama_fungsi_just}}(value):\n    \"\"\"Create a Maybe with a value.\"\"\"\n    return {{nama_class}}(value)\n\n\ndef {{nama_fungsi_nothing}}():\n    \"\"\"Create an empty Maybe (None).\"\"\"\n    return {{nama_class}}(None)\n",
+      "sample_values": {
+        "nama_class": "Maybe",
+        "nama_fungsi_just": "Just",
+        "nama_fungsi_nothing": "Nothing"
+      }
+    },
+    {
+      "id": "either",
+      "title": "Either Monad Lite — handle success/error",
+      "description": "Either.right(data) atau Either.error(msg). Chain operations tanpa try/except. Pattern untuk error handling.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "Either"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Either monad: Right (success) or Left (error).\n    Right('ok').map(str.upper) → Right('OK')\n    Left('err').map(str.upper) → Left('err')\n    \"\"\"\n    def __init__(self, value=None, error=None):\n        self._value = value\n        self._error = error\n\n    @classmethod\n    def right(cls, value):\n        \"\"\"Create a Right (success) instance.\"\"\"\n        return cls(value=value)\n\n    @classmethod\n    def left(cls, error):\n        \"\"\"Create a Left (error) instance.\"\"\"\n        return cls(error=error)\n\n    @property\n    def is_right(self):\n        return self._error is None\n\n    @property\n    def is_left(self):\n        return self._error is not None\n\n    @property\n    def value(self):\n        return self._value\n\n    @property\n    def error(self):\n        return self._error\n\n    def map(self, func):\n        \"\"\"Apply function to value if Right.\"\"\"\n        if self.is_right:\n            try:\n                return {{nama_class}}.right(func(self._value))\n            except Exception as e:\n                return {{nama_class}}.left(str(e))\n        return self\n\n    def flat_map(self, func):\n        \"\"\"Like map, but func should return Either.\"\"\"\n        if self.is_right:\n            try:\n                return func(self._value)\n            except Exception as e:\n                return {{nama_class}}.left(str(e))\n        return self\n\n    def map_error(self, func):\n        \"\"\"Apply function to error if Left.\"\"\"\n        if self.is_left:\n            return {{nama_class}}.left(func(self._error))\n        return self\n\n    def get_or_else(self, default):\n        \"\"\"Return value if Right, else default.\"\"\"\n        return self._value if self.is_right else default\n\n    def __repr__(self):\n        if self.is_right:\n            return 'Right(%r)' % (self._value,)\n        return 'Left(%r)' % (self._error,)\n\n    def __eq__(self, other):\n        if isinstance(other, {{nama_class}}):\n            return self._value == other._value and self._error == other._error\n        return False\n",
+      "sample_values": {
+        "nama_class": "Either"
+      }
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+{
+  "category": "ml_helpers",
+  "label": "Machine Learning",
+  "templates": [
+    {
+      "id": "train_test_split",
+      "title": "Train/Test Split — tanpa sklearn",
+      "description": "Split data ke training dan testing set. Support stratifikasi dan shuffle. stdlib only.",
+      "imports": ["random"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "train_test_split"},
+        {"name": "default_test_size", "label": "Default test size", "type": "text", "default": "0.2"}
+      ],
+      "code": "def {{nama_fungsi}}(X, y=None, test_size={{default_test_size}}, shuffle=True, stratify=None, seed=None):\n    \"\"\"Split data into training and testing sets.\n    X: list of samples, y: list of labels (optional).\n    test_size: float (fraction) or int (count).\n    stratify: list of labels to stratify by.\n    Returns: (X_train, X_test) or (X_train, X_test, y_train, y_test) if y given.\n    \"\"\"\n    rng = random.Random(seed)\n    n = len(X)\n    if isinstance(test_size, float):\n        n_test = max(1, int(n * test_size))\n    else:\n        n_test = test_size\n    indices = list(range(n))\n    if stratify is not None:\n        from collections import defaultdict\n        groups = defaultdict(list)\n        for i, label in enumerate(stratify):\n            groups[label].append(i)\n        train_idx, test_idx = [], []\n        for label, group_indices in groups.items():\n            if shuffle:\n                rng.shuffle(group_indices)\n            n_group_test = max(1, int(len(group_indices) * test_size)) if isinstance(test_size, float) else int(test_size * len(group_indices) / n)\n            test_idx.extend(group_indices[:n_group_test])\n            train_idx.extend(group_indices[n_group_test:])\n    else:\n        if shuffle:\n            rng.shuffle(indices)\n        test_idx = indices[:n_test]\n        train_idx = indices[n_test:]\n    X_train = [X[i] for i in train_idx]\n    X_test = [X[i] for i in test_idx]\n    if y is None:\n        return X_train, X_test\n    y_train = [y[i] for i in train_idx]\n    y_test = [y[i] for i in test_idx]\n    return X_train, X_test, y_train, y_test\n",
+      "sample_values": {
+        "nama_fungsi": "train_test_split",
+        "default_test_size": "0.2"
+      }
+    },
+    {
+      "id": "confusion_matrix",
+      "title": "Confusion Matrix Builder",
+      "description": "Bangun confusion matrix dari y_true dan y_pred. Support multi-class. stdlib only.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "confusion_matrix"},
+        {"name": "nama_fungsi_print", "label": "Nama fungsi printer", "type": "identifier", "default": "print_cm"}
+      ],
+      "code": "def {{nama_fungsi}}(y_true, y_pred, labels=None):\n    \"\"\"Build confusion matrix from true and predicted labels.\n    Returns dict: {'matrix': 2D list, 'labels': list, 'size': int}\n    matrix[i][j] = count where true=i, pred=j\n    \"\"\"\n    if labels is None:\n        labels = sorted(set(y_true) | set(y_pred))\n    label_idx = {label: i for i, label in enumerate(labels)}\n    n = len(labels)\n    matrix = [[0] * n for _ in range(n)]\n    for t, p in zip(y_true, y_pred):\n        if t in label_idx and p in label_idx:\n            matrix[label_idx[t]][label_idx[p]] += 1\n    return {'matrix': matrix, 'labels': labels, 'size': n}\n\n\ndef {{nama_fungsi_print}}(cm_result):\n    \"\"\"Pretty-print confusion matrix.\"\"\"\n    matrix = cm_result['matrix']\n    labels = cm_result['labels']\n    max_label = max(len(str(l)) for l in labels) if labels else 3\n    max_val = max(max(row) for row in matrix) if matrix else 0\n    cell_width = max(max_label + 1, len(str(max_val)) + 2)\n    header = ' ' * (max_label + 2) + ''.join(str(l).rjust(cell_width) for l in labels)\n    print('Predicted →')\n    print(header)\n    print('Actual ↓')\n    for i, label in enumerate(labels):\n        row_str = str(label).ljust(max_label + 2) + ''.join(str(matrix[i][j]).rjust(cell_width) for j in range(len(labels)))\n        print(row_str)\n",
+      "sample_values": {
+        "nama_fungsi": "confusion_matrix",
+        "nama_fungsi_print": "print_cm"
+      }
+    },
+    {
+      "id": "classification_report",
+      "title": "Classification Report — Precision, Recall, F1",
+      "description": "Hitung precision, recall, F1 per class + macro/weighted average. Stdlib only.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "classification_report"}
+      ],
+      "code": "def {{nama_fungsi}}(y_true, y_pred, labels=None, digits=4):\n    \"\"\"Generate classification report with precision, recall, F1 per class.\n    Returns dict with per-class metrics and averages.\n    \"\"\"\n    if labels is None:\n        labels = sorted(set(y_true) | set(y_pred))\n    report = {}\n    total = len(y_true)\n    for label in labels:\n        tp = sum(1 for t, p in zip(y_true, y_pred) if t == label and p == label)\n        fp = sum(1 for t, p in zip(y_true, y_pred) if t != label and p == label)\n        fn = sum(1 for t, p in zip(y_true, y_pred) if t == label and p != label)\n        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0\n        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0\n        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0\n        support = sum(1 for t in y_true if t == label)\n        report[label] = {\n            'precision': round(precision, digits),\n            'recall': round(recall, digits),\n            'f1': round(f1, digits),\n            'support': support,\n        }\n    # Macro average\n    n_classes = len(labels)\n    report['_macro_avg'] = {\n        'precision': round(sum(r['precision'] for r in report.values() if isinstance(r, dict) and 'precision' in r) / n_classes, digits),\n        'recall': round(sum(r['recall'] for r in report.values() if isinstance(r, dict) and 'recall' in r) / n_classes, digits),\n        'f1': round(sum(r['f1'] for r in report.values() if isinstance(r, dict) and 'f1' in r) / n_classes, digits),\n        'support': total,\n    }\n    # Weighted average\n    if total > 0:\n        report['_weighted_avg'] = {\n            'precision': round(sum(r['precision'] * r['support'] for r in report.values() if isinstance(r, dict) and 'precision' in r) / total, digits),\n            'recall': round(sum(r['recall'] * r['support'] for r in report.values() if isinstance(r, dict) and 'recall' in r) / total, digits),\n            'f1': round(sum(r['f1'] * r['support'] for r in report.values() if isinstance(r, dict) and 'f1' in r) / total, digits),\n            'support': total,\n        }\n    report['_accuracy'] = sum(1 for t, p in zip(y_true, y_pred) if t == p) / total if total > 0 else 0.0\n    return report\n",
+      "sample_values": {
+        "nama_fungsi": "classification_report"
+      }
+    },
+    {
+      "id": "one_hot_encode",
+      "title": "One-Hot Encoder",
+      "description": "Encode categorical labels ke binary vectors. Support fit/transform pattern.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "OneHotEncoder"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"One-hot encoder for categorical data.\n    encoder = OneHotEncoder()\n    encoder.fit(['cat', 'dog', 'bird'])\n    encoder.transform(['cat', 'bird']) → [[1,0,0], [0,0,1]]\n    \"\"\"\n    def __init__(self):\n        self.classes_ = []\n        self._class_to_idx = {}\n\n    def fit(self, categories):\n        \"\"\"Learn categories from data.\"\"\"\n        self.classes_ = sorted(set(categories))\n        self._class_to_idx = {c: i for i, c in enumerate(self.classes_)}\n        return self\n\n    def transform(self, data):\n        \"\"\"Transform categories to one-hot vectors.\"\"\"\n        result = []\n        for item in data:\n            vec = [0] * len(self.classes_)\n            if item in self._class_to_idx:\n                vec[self._class_to_idx[item]] = 1\n            result.append(vec)\n        return result\n\n    def fit_transform(self, data):\n        \"\"\"Fit and transform in one step.\"\"\"\n        self.fit(data)\n        return self.transform(data)\n\n    def inverse_transform(self, vectors):\n        \"\"\"Convert one-hot vectors back to categories.\"\"\"\n        result = []\n        for vec in vectors:\n            idx = vec.index(1) if 1 in vec else -1\n            if 0 <= idx < len(self.classes_):\n                result.append(self.classes_[idx])\n            else:\n                result.append(None)\n        return result\n\n    @property\n    def n_classes(self):\n        return len(self.classes_)\n",
+      "sample_values": {
+        "nama_class": "OneHotEncoder"
+      }
+    },
+    {
+      "id": "kfold_split",
+      "title": "K-Fold Cross-Validation Splitter",
+      "description": "Generate K fold untuk cross-validation. Yield (train_indices, test_indices) per fold.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class", "type": "identifier", "default": "KFold"},
+        {"name": "default_k", "label": "Default K folds", "type": "int", "default": 5}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"K-Fold cross-validation splitter.\n    for train_idx, test_idx in KFold(k=5).split(data):\n        X_train = [data[i] for i in train_idx]\n        X_test = [data[i] for i in test_idx]\n    \"\"\"\n    def __init__(self, k={{default_k}}, shuffle=False, seed=None):\n        self.k = k\n        self.shuffle = shuffle\n        self.seed = seed\n\n    def split(self, data):\n        \"\"\"Yield (train_indices, test_indices) for each fold.\"\"\"\n        n = len(data)\n        indices = list(range(n))\n        if self.shuffle:\n            import random\n            rng = random.Random(self.seed)\n            rng.shuffle(indices)\n        fold_size = n // self.k\n        for i in range(self.k):\n            start = i * fold_size\n            end = start + fold_size if i < self.k - 1 else n\n            test_idx = indices[start:end]\n            train_idx = indices[:start] + indices[end:]\n            yield train_idx, test_idx\n\n    def get_n_splits(self):\n        return self.k\n\n\nclass StratifiedKFold:\n    \"\"\"Stratified K-Fold: preserves class distribution in each fold.\"\"\"\n    def __init__(self, k=5, shuffle=False, seed=None):\n        self.kfold = KFold(k=k, shuffle=shuffle, seed=seed)\n        self.k = k\n\n    def split(self, X, y):\n        \"\"\"Yield (train_indices, test_indices) stratified by y.\"\"\"\n        from collections import defaultdict\n        groups = defaultdict(list)\n        for i, label in enumerate(y):\n            groups[label].append(i)\n        label_folds = {}\n        for label, idxs in groups.items():\n            kf = self.kfold\n            kf.k = self.k\n            label_folds[label] = list(kf.split(idxs))\n        for fold_i in range(self.k):\n            train_idx, test_idx = [], []\n            for label in groups:\n                folds = label_folds[label]\n                t_idx, te_idx = folds[fold_i]\n                train_idx.extend([groups[label][j] for j in t_idx])\n                test_idx.extend([groups[label][j] for j in te_idx])\n            yield train_idx, test_idx\n\n    def get_n_splits(self):\n        return self.k\n",
+      "sample_values": {
+        "nama_class": "KFold",
+        "default_k": 5
+      }
+    },
+    {
+      "id": "feature_scaler",
+      "title": "Standard & Min-Max Scaler",
+      "description": "Normalisasi fitur: StandardScaler (z-score) dan MinMaxScaler (0-1). Fit/transform pattern.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class_std", "label": "Nama class StandardScaler", "type": "identifier", "default": "StandardScaler"},
+        {"name": "nama_class_minmax", "label": "Nama class MinMaxScaler", "type": "identifier", "default": "MinMaxScaler"}
+      ],
+      "code": "class {{nama_class_std}}:\n    \"\"\"Standard scaler: z-score normalization. x' = (x - mean) / std\n    scaler = StandardScaler()\n    scaler.fit([[1,2],[3,4],[5,6]])\n    scaled = scaler.transform([[2,3]])\n    \"\"\"\n    def __init__(self):\n        self.mean_ = None\n        self.std_ = None\n\n    def fit(self, data):\n        \"\"\"Compute mean and std per feature column.\"\"\"\n        if not data:\n            return self\n        n_features = len(data[0])\n        self.mean_ = [0.0] * n_features\n        self.std_ = [0.0] * n_features\n        n = len(data)\n        for row in data:\n            for j in range(n_features):\n                self.mean_[j] += row[j]\n        self.mean_ = [m / n for m in self.mean_]\n        for row in data:\n            for j in range(n_features):\n                self.std_[j] += (row[j] - self.mean_[j]) ** 2\n        self.std_ = [(s / n) ** 0.5 for s in self.std_]\n        self.std_ = [s if s > 1e-10 else 1.0 for s in self.std_]\n        return self\n\n    def transform(self, data):\n        return [[(x - self.mean_[j]) / self.std_[j] for j, x in enumerate(row)] for row in data]\n\n    def fit_transform(self, data):\n        self.fit(data)\n        return self.transform(data)\n\n    def inverse_transform(self, data):\n        return [[x * self.std_[j] + self.mean_[j] for j, x in enumerate(row)] for row in data]\n\n\nclass {{nama_class_minmax}}:\n    \"\"\"Min-Max scaler: scale to [0, 1]. x' = (x - min) / (max - min)\"\"\"\n    def __init__(self, feature_range=(0, 1)):\n        self.min_ = None\n        self.max_ = None\n        self.range = feature_range\n\n    def fit(self, data):\n        if not data:\n            return self\n        n_features = len(data[0])\n        self.min_ = [min(row[j] for row in data) for j in range(n_features)]\n        self.max_ = [max(row[j] for row in data) for j in range(n_features)]\n        return self\n\n    def transform(self, data):\n        lo, hi = self.range\n        result = []\n        for row in data:\n            scaled = []\n            for j, x in enumerate(row):\n                rng = self.max_[j] - self.min_[j]\n                if rng < 1e-10:\n                    scaled.append(lo)\n                else:\n                    scaled.append(lo + (x - self.min_[j]) / rng * (hi - lo))\n            result.append(scaled)\n        return result\n\n    def fit_transform(self, data):\n        self.fit(data)\n        return self.transform(data)\n",
+      "sample_values": {
+        "nama_class_std": "StandardScaler",
+        "nama_class_minmax": "MinMaxScaler"
+      }
+    },
+    {
+      "id": "r2_score",
+      "title": "R² Score Calculator",
+      "description": "Coefficient of determination (R²) untuk regresi. Juga hitung MSE, RMSE, MAE.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "regression_metrics"}
+      ],
+      "code": "def {{nama_fungsi}}(y_true, y_pred):\n    \"\"\"Calculate regression metrics: R², MSE, RMSE, MAE.\n    Returns dict with all metrics.\n    \"\"\"\n    n = len(y_true)\n    if n == 0:\n        return {'r2': 0, 'mse': 0, 'rmse': 0, 'mae': 0}\n    mean_y = sum(y_true) / n\n    ss_res = sum((yt - yp) ** 2 for yt, yp in zip(y_true, y_pred))\n    ss_tot = sum((yt - mean_y) ** 2 for yt in y_true)\n    mse = ss_res / n\n    rmse = mse ** 0.5\n    mae = sum(abs(yt - yp) for yt, yp in zip(y_true, y_pred)) / n\n    r2 = 1 - (ss_res / ss_tot) if ss_tot > 1e-10 else 0.0\n    return {\n        'r2': round(r2, 6),\n        'mse': round(mse, 6),\n        'rmse': round(rmse, 6),\n        'mae': round(mae, 6),\n        'n_samples': n,\n    }\n",
+      "sample_values": {
+        "nama_fungsi": "regression_metrics"
+      }
+    },
+    {
+      "id": "auc_roc",
+      "title": "AUC-ROC Calculator (Trapezoidal)",
+      "description": "Area Under ROC Curve tanpa sklearn. Hitung TPR/FPR di berbagai threshold.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi AUC", "type": "identifier", "default": "auc_score"},
+        {"name": "nama_fungsi_roc", "label": "Nama fungsi ROC curve", "type": "identifier", "default": "roc_curve"}
+      ],
+      "code": "def {{nama_fungsi_roc}}(y_true, y_scores):\n    \"\"\"Compute ROC curve points (FPR, TPR) at various thresholds.\n    y_true: binary labels (0/1).\n    y_scores: predicted scores/probabilities.\n    Returns dict with 'fpr', 'tpr', 'thresholds' lists.\n    \"\"\"\n    pairs = sorted(zip(y_scores, y_true), reverse=True)\n    total_pos = sum(1 for _, y in pairs if y == 1)\n    total_neg = sum(1 for _, y in pairs if y == 0)\n    if total_pos == 0 or total_neg == 0:\n        return {'fpr': [0, 1], 'tpr': [0, 1], 'thresholds': []}\n    fpr_list, tpr_list, thresholds = [0.0], [0.0], []\n    tp, fp = 0, 0\n    for score, label in pairs:\n        if label == 1:\n            tp += 1\n        else:\n            fp += 1\n        tpr_list.append(tp / total_pos)\n        fpr_list.append(fp / total_neg)\n        thresholds.append(score)\n    return {'fpr': fpr_list, 'tpr': tpr_list, 'thresholds': thresholds}\n\n\ndef {{nama_fungsi}}(y_true, y_scores):\n    \"\"\"Compute AUC-ROC using trapezoidal rule.\n    Returns float between 0 and 1.\n    \"\"\"\n    roc = {{nama_fungsi_roc}}(y_true, y_scores)\n    fpr = roc['fpr']\n    tpr = roc['tpr']\n    auc = 0.0\n    for i in range(1, len(fpr)):\n        auc += (fpr[i] - fpr[i-1]) * (tpr[i] + tpr[i-1]) / 2.0\n    return round(auc, 6)\n",
+      "sample_values": {
+        "nama_fungsi": "auc_score",
+        "nama_fungsi_roc": "roc_curve"
+      }
+    },
+    {
+      "id": "shuffle_data",
+      "title": "Deterministic Data Shuffler",
+      "description": "Shuffle X, y dengan seed yang sama (paired shuffle). Reproducible.",
+      "imports": ["random"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "shuffle_data"}
+      ],
+      "code": "def {{nama_fungsi}}(X, y=None, seed=42):\n    \"\"\"Shuffle X and y together with the same random seed.\n    Maintains correspondence between X[i] and y[i].\n    Returns: (X_shuffled,) or (X_shuffled, y_shuffled) if y given.\n    \"\"\"\n    rng = random.Random(seed)\n    indices = list(range(len(X)))\n    rng.shuffle(indices)\n    X_shuffled = [X[i] for i in indices]\n    if y is None:\n        return X_shuffled\n    y_shuffled = [y[i] for i in indices]\n    return X_shuffled, y_shuffled\n",
+      "sample_values": {
+        "nama_fungsi": "shuffle_data"
+      }
+    },
+    {
+      "id": "bootstrap_sample",
+      "title": "Bootstrap Resampling",
+      "description": "Generate bootstrap samples untuk confidence interval estimation. With-replacement sampling.",
+      "imports": ["random"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi bootstrap", "type": "identifier", "default": "bootstrap_sample"},
+        {"name": "nama_fungsi_ci", "label": "Nama fungsi confidence interval", "type": "identifier", "default": "bootstrap_ci"}
+      ],
+      "code": "def {{nama_fungsi}}(data, n_samples=None, seed=None):\n    \"\"\"Generate one bootstrap sample (sampling with replacement).\n    Returns list of same length as data.\n    \"\"\"\n    rng = random.Random(seed)\n    n = len(data)\n    if n_samples is None:\n        n_samples = n\n    return [rng.choice(data) for _ in range(n_samples)]\n\n\ndef {{nama_fungsi_ci}}(data, statistic_func, n_bootstrap=1000, confidence=0.95, seed=None):\n    \"\"\"Estimate confidence interval using bootstrap.\n    statistic_func: function that computes statistic from data (e.g. lambda x: sum(x)/len(x)).\n    confidence: confidence level (0.95 = 95%).\n    Returns dict: {'estimate': float, 'ci_lower': float, 'ci_upper': float, 'std_error': float}\n    \"\"\"\n    rng = random.Random(seed)\n    n = len(data)\n    estimates = []\n    for _ in range(n_bootstrap):\n        sample = [rng.choice(data) for _ in range(n)]\n        estimates.append(statistic_func(sample))\n    estimates.sort()\n    alpha = (1 - confidence) / 2\n    lower_idx = int(alpha * n_bootstrap)\n    upper_idx = int((1 - alpha) * n_bootstrap) - 1\n    point_estimate = statistic_func(data)\n    mean_est = sum(estimates) / len(estimates)\n    std_err = (sum((e - mean_est) ** 2 for e in estimates) / (len(estimates) - 1)) ** 0.5\n    return {\n        'estimate': round(point_estimate, 6),\n        'ci_lower': round(estimates[lower_idx], 6),\n        'ci_upper': round(estimates[upper_idx], 6),\n        'std_error': round(std_err, 6),\n        'n_bootstrap': n_bootstrap,\n        'confidence': confidence,\n    }\n",
+      "sample_values": {
+        "nama_fungsi": "bootstrap_sample",
+        "nama_fungsi_ci": "bootstrap_ci"
+      }
+    }
+  ]
+}

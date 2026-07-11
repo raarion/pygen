@@ -1,0 +1,104 @@
+{
+  "category": "cli_advanced",
+  "label": "CLI Advanced",
+  "templates": [
+    {
+      "id": "click_cli_scaffold",
+      "title": "Click CLI Scaffold Generator",
+      "description": "Generate file Python berisi Click CLI app skeleton. Tinggal simpan dan pakai.",
+      "imports": [],
+      "requires": {"packages": ["click"]},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi generator", "type": "identifier", "default": "generate_click_app"},
+        {"name": "app_name", "label": "Nama aplikasi", "type": "identifier", "default": "myapp"},
+        {"name": "app_description", "label": "Deskripsi aplikasi", "type": "text", "default": "A CLI application"}
+      ],
+      "code": "def {{nama_fungsi}}(app_name='{{app_name}}', description='{{app_description}}'):\n    \"\"\"Generate Click CLI application code as string.\"\"\"\n    code = '''#!/usr/bin/env python3\n\"\"\"DESC_PLACEHOLDER\"\"\"\nimport click\n\n\n@click.group()\n@click.version_option(version='0.1.0')\ndef cli():\n    \"\"\"DESC_PLACEHOLDER\"\"\"\n    pass\n\n\n@cli.command()\n@click.option('--name', '-n', default='World', help='Name to greet')\n@click.option('--loud', is_flag=True, help='Use uppercase')\ndef greet(name, loud):\n    \"\"\"Greet someone.\"\"\"\n    message = 'Hello, ' + name + '!'\n    if loud:\n        message = message.upper()\n    click.echo(message)\n\n\n@cli.command()\n@click.argument('filename')\n@click.option('--lines', '-n', default=10, type=int, help='Number of lines')\ndef head(filename, lines):\n    \"\"\"Show first N lines of a file.\"\"\"\n    with open(filename) as f:\n        for i, line in enumerate(f):\n            if i >= lines:\n                break\n            click.echo(line, nl=False)\n\n\n@cli.group()\ndef db():\n    \"\"\"Database commands.\"\"\"\n    pass\n\n\n@db.command()\n@click.option('--name', required=True, help='Database name')\ndef create(name):\n    \"\"\"Create a new database.\"\"\"\n    click.echo('Creating database: ' + name)\n\n\nif __name__ == '__main__':\n    cli()\n'''.replace('DESC_PLACEHOLDER', description)\n    return code\n",
+      "sample_values": {
+        "nama_fungsi": "generate_click_app",
+        "app_name": "myapp",
+        "app_description": "A CLI application"
+      }
+    },
+    {
+      "id": "typer_cli_scaffold",
+      "title": "Typer CLI Scaffold Generator",
+      "description": "Generate file Python berisi Typer CLI dengan type hints. Modern Python CLI style.",
+      "imports": [],
+      "requires": {"packages": ["typer"], "python": ">=3.8"},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi generator", "type": "identifier", "default": "generate_typer_app"},
+        {"name": "app_name", "label": "Nama aplikasi", "type": "identifier", "default": "myapp"},
+        {"name": "app_description", "label": "Deskripsi", "type": "text", "default": "A Typer CLI app"}
+      ],
+      "code": "def {{nama_fungsi}}(app_name='{{app_name}}', description='{{app_description}}'):\n    \"\"\"Generate Typer CLI application code as string.\"\"\"\n    code = '''#!/usr/bin/env python3\n\"\"\"DESC_PLACEHOLDER\"\"\"\nfrom typing import Optional\nimport typer\n\napp = typer.Typer(help='DESC_PLACEHOLDER')\n\n\n@app.command()\ndef greet(\n    name: str = typer.Argument('World', help='Name to greet'),\n    loud: bool = typer.Option(False, '--loud', '-l', help='Uppercase output'),\n    count: int = typer.Option(1, '--count', '-c', min=1, max=10, help='Repeat count'),\n):\n    \"\"\"Greet someone.\"\"\"\n    message = f'Hello, {name}!'\n    if loud:\n        message = message.upper()\n    for _ in range(count):\n        typer.echo(message)\n\n\n@app.command()\ndef process(\n    input_file: typer.FileText = typer.Argument(..., help='Input file'),\n    output: Optional[typer.FileTextWrite] = typer.Option(None, '--output', '-o'),\n    verbose: bool = typer.Option(False, '--verbose', '-v'),\n):\n    \"\"\"Process a file.\"\"\"\n    data = input_file.read()\n    if verbose:\n        typer.echo(f'Processing {len(data)} characters...')\n    result = data.upper()\n    if output:\n        output.write(result)\n        typer.echo(f'Written to output file.')\n    else:\n        typer.echo(result)\n\n\n@app.command()\ndef db_init(name: str = typer.Argument(..., help='Database name')):\n    \"\"\"Initialize database.\"\"\"\n    typer.echo(f'Initializing database: {name}')\n\n\nif __name__ == '__main__':\n    app()\n'''.replace('DESC_PLACEHOLDER', description)\n    return code\n",
+      "sample_values": {
+        "nama_fungsi": "generate_typer_app",
+        "app_name": "myapp",
+        "app_description": "A Typer CLI app"
+      }
+    },
+    {
+      "id": "term_width",
+      "title": "Terminal Width Detector",
+      "description": "Dapatkan lebar terminal saat ini. Fallback ke default jika tidak terdeteksi.",
+      "imports": ["shutil", "os"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "get_terminal_size"},
+        {"name": "default_width", "label": "Default width", "type": "int", "default": 80},
+        {"name": "default_height", "label": "Default height", "type": "int", "default": 24}
+      ],
+      "code": "def {{nama_fungsi}}(default_width={{default_width}}, default_height={{default_height}}):\n    \"\"\"Get current terminal dimensions.\n    Returns (width, height) tuple.\n    \"\"\"\n    size = shutil.get_terminal_size(fallback=(default_width, default_height))\n    return size.columns, size.lines\n\n\ndef get_term_width(default={{default_width}}):\n    \"\"\"Get terminal width only.\"\"\"\n    return shutil.get_terminal_size(fallback=(default, 24)).columns\n\n\ndef center_text(text, width=None):\n    \"\"\"Center text within terminal width.\"\"\"\n    if width is None:\n        width = get_term_width()\n    return text.center(width)\n\n\ndef truncate_to_width(text, width=None, ellipsis='...'):\n    \"\"\"Truncate text to fit terminal width.\"\"\"\n    if width is None:\n        width = get_term_width()\n    if len(text) <= width:\n        return text\n    return text[:width - len(ellipsis)] + ellipsis\n",
+      "sample_values": {
+        "nama_fungsi": "get_terminal_size",
+        "default_width": 80,
+        "default_height": 24
+      }
+    },
+    {
+      "id": "pager_output",
+      "title": "Pager — Output Panjang dengan Scrolling",
+      "description": "Pipe output panjang ke pager (less/more) otomatis. Fallback ke print jika pager tidak tersedia.",
+      "imports": ["subprocess", "sys", "os"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "page_output"},
+        {"name": "default_pager", "label": "Default pager", "type": "text", "default": "less -R"}
+      ],
+      "code": "def {{nama_fungsi}}(text, pager=None):\n    \"\"\"Display text through a pager (less/more).\n    Falls back to printing if pager is not available.\n    pager: command string, e.g. 'less -R' or 'more'.\n    \"\"\"\n    if pager is None:\n        pager = os.environ.get('PAGER', '{{default_pager}}')\n    cmd = pager.split()\n    try:\n        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, encoding='utf-8')\n        proc.communicate(input=text)\n        if proc.returncode != 0:\n            raise OSError('Pager exited with code %d' % proc.returncode)\n    except (OSError, FileNotFoundError):\n        sys.stdout.write(text)\n        if not text.endswith('\\n'):\n            sys.stdout.write('\\n')\n        sys.stdout.flush()\n\n\ndef page_lines(lines, pager=None):\n    \"\"\"Page an iterable of lines.\"\"\"\n    {{nama_fungsi}}('\\n'.join(str(line) for line in lines), pager)\n",
+      "sample_values": {
+        "nama_fungsi": "page_output",
+        "default_pager": "less -R"
+      }
+    },
+    {
+      "id": "confirm_overwrite",
+      "title": "Safe Overwrite — Konfirmasi Sebelum Overwrite",
+      "description": "Cek file exists → prompt konfirmasi → overwrite atau skip. Mencegah kehilangan data.",
+      "imports": ["os"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "safe_write"}
+      ],
+      "code": "def {{nama_fungsi}}(filepath, content, mode='w', confirm_func=None):\n    \"\"\"Write to file with overwrite confirmation if file exists.\n    confirm_func: callable(prompt) -> bool. If None, uses input().\n    Returns: 'written', 'skipped', or 'cancelled'.\n    \"\"\"\n    if os.path.exists(filepath):\n        prompt = 'File %s already exists. Overwrite? [y/N] ' % filepath\n        if confirm_func:\n            proceed = confirm_func(prompt)\n        else:\n            import sys\n            sys.stderr.write(prompt)\n            sys.stderr.flush()\n            answer = input().strip().lower()\n            proceed = answer in ('y', 'yes')\n        if not proceed:\n            return 'cancelled'\n    with open(filepath, mode, encoding='utf-8') as f:\n        f.write(content)\n    return 'written'\n\n\ndef safe_rename(src, dst, confirm_func=None):\n    \"\"\"Rename file with confirmation if destination exists.\"\"\"\n    if os.path.exists(dst):\n        prompt = 'Destination %s exists. Overwrite? [y/N] ' % dst\n        if confirm_func:\n            proceed = confirm_func(prompt)\n        else:\n            import sys\n            sys.stderr.write(prompt)\n            sys.stderr.flush()\n            answer = input().strip().lower()\n            proceed = answer in ('y', 'yes')\n        if not proceed:\n            return 'cancelled'\n    os.rename(src, dst)\n    return 'renamed'\n",
+      "sample_values": {
+        "nama_fungsi": "safe_write"
+      }
+    },
+    {
+      "id": "arg_validator",
+      "title": "CLI Arg Validators — path, url, email, range",
+      "description": "Custom argparse type validators. Bisa dipakai sebagai type= di add_argument().",
+      "imports": ["os", "re"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi_prefix", "label": "Prefix fungsi validator", "type": "identifier", "default": "validate_"}
+      ],
+      "code": "def {{nama_fungsi_prefix}}existing_file(path):\n    \"\"\"argparse type: validate path is an existing file.\"\"\"\n    if not os.path.isfile(path):\n        raise ValueError('File not found: %s' % path)\n    return path\n\n\ndef {{nama_fungsi_prefix}}existing_dir(path):\n    \"\"\"argparse type: validate path is an existing directory.\"\"\"\n    if not os.path.isdir(path):\n        raise ValueError('Directory not found: %s' % path)\n    return path\n\n\ndef {{nama_fungsi_prefix}}writable_file(path):\n    \"\"\"argparse type: validate parent dir exists and is writable.\"\"\"\n    parent = os.path.dirname(path) or '.'\n    if not os.path.isdir(parent):\n        raise ValueError('Parent directory not found: %s' % parent)\n    if not os.access(parent, os.W_OK):\n        raise ValueError('Directory not writable: %s' % parent)\n    return path\n\n\ndef {{nama_fungsi_prefix}}url(value):\n    \"\"\"argparse type: validate URL format.\"\"\"\n    pattern = r'^https?://[^\\s/$.?#].[^\\s]*$'\n    if not re.match(pattern, value, re.IGNORECASE):\n        raise ValueError('Invalid URL: %s' % value)\n    return value\n\n\ndef {{nama_fungsi_prefix}}email(value):\n    \"\"\"argparse type: validate email format.\"\"\"\n    pattern = r'^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$'\n    if not re.match(pattern, value):\n        raise ValueError('Invalid email: %s' % value)\n    return value\n\n\ndef {{nama_fungsi_prefix}}int_range(min_val, max_val):\n    \"\"\"Create argparse type validator for integer range.\"\"\"\n    def validator(value):\n        try:\n            ivalue = int(value)\n        except ValueError:\n            raise ValueError('Not an integer: %s' % value)\n        if ivalue < min_val or ivalue > max_val:\n            raise ValueError('Value %d out of range [%d, %d]' % (ivalue, min_val, max_val))\n        return ivalue\n    validator.__name__ = 'int_range(%d,%d)' % (min_val, max_val)\n    return validator\n\n\ndef {{nama_fungsi_prefix}}choices(options, case_sensitive=True):\n    \"\"\"Create argparse type validator from choices list.\"\"\"\n    def validator(value):\n        if case_sensitive:\n            if value not in options:\n                raise ValueError('Must be one of: %s' % ', '.join(options))\n        else:\n            lower_map = {o.lower(): o for o in options}\n            if value.lower() not in lower_map:\n                raise ValueError('Must be one of: %s' % ', '.join(options))\n            return lower_map[value.lower()]\n        return value\n    validator.__name__ = 'choices(%s)' % ','.join(options)\n    return validator\n",
+      "sample_values": {
+        "nama_fungsi_prefix": "validate_"
+      }
+    }
+  ]
+}

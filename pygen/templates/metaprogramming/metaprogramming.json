@@ -1,0 +1,134 @@
+{
+  "category": "metaprogramming",
+  "label": "Metaprogramming",
+  "templates": [
+    {
+      "id": "class_factory",
+      "title": "Dynamic Class Factory",
+      "description": "Buat class baru secara dinamis dari dict attributes. Bisa specify bases, methods, class vars.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi factory", "type": "identifier", "default": "make_class"},
+        {"name": "nama_fungsi_ext", "label": "Nama fungsi (extended with methods)", "type": "identifier", "default": "build_class"}
+      ],
+      "code": "def {{nama_fungsi}}(name, bases=(), **attrs):\n    \"\"\"Create a new class dynamically.\n    make_class('Dog', (Animal,), sound='Woof')\n    \"\"\"\n    return type(name, bases, attrs)\n\n\ndef {{nama_fungsi_ext}}(name, fields=None, methods=None, bases=(), doc=None):\n    \"\"\"Build a class with fields (class vars) and methods.\n    fields: dict of name: default_value\n    methods: dict of name: callable\n    Returns the new class.\n    \"\"\"\n    attrs = {}\n    if doc:\n        attrs['__doc__'] = doc\n    if fields:\n        for fname, default in fields.items():\n            attrs[fname] = default\n    if methods:\n        attrs.update(methods)\n\n    def __init__(self, **kwargs):\n        for key, val in (fields or {}).items():\n            setattr(self, key, kwargs.get(key, val))\n    attrs.setdefault('__init__', __init__)\n\n    def __repr__(self):\n        parts = ['%s=%r' % (k, getattr(self, k, None)) for k in (fields or {})]\n        return self.__class__.__name__ + '(' + ', '.join(parts) + ')'\n    attrs.setdefault('__repr__', __repr__)\n\n    return type(name, bases, attrs)\n",
+      "sample_values": {
+        "nama_fungsi": "make_class",
+        "nama_fungsi_ext": "build_class"
+      }
+    },
+    {
+      "id": "dataclass_generator",
+      "title": "Dataclass Code Generator",
+      "description": "Generate kode @dataclass dari field definitions. Output string Python siap simpan.",
+      "imports": [],
+      "requires": {"python": ">=3.7"},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi generator", "type": "identifier", "default": "generate_dataclass"},
+        {"name": "use_annotations", "label": "Use type annotations", "type": "bool", "default": true}
+      ],
+      "code": "def {{nama_fungsi}}(class_name, fields, use_annotations={{use_annotations}}, frozen=False, slots=False):\n    \"\"\"Generate @dataclass Python code from field definitions.\n    fields: list of {'name': str, 'type': str, 'default': any, 'required': bool}\n    Returns Python source code as string.\n    \"\"\"\n    imports = ['from dataclasses import dataclass']\n    if any(f.get('type') in ('List', 'Dict', 'Optional') for f in fields):\n        imports.append('from typing import List, Dict, Optional')\n    lines = list(imports) + ['', '@dataclass(frozen=' + str(frozen) + (', slots=True' if slots else '') + ')']\n    lines.append('class ' + class_name + ':')\n    has_doc = False\n    for f in fields:\n        if f.get('doc'):\n            lines.append('    \"\"\"' + f['doc'] + '\"\"\"')\n            has_doc = True\n            break\n    required = [f for f in fields if f.get('required', True)]\n    optional = [f for f in fields if not f.get('required', True)]\n    for f in required + optional:\n        name = f['name']\n        ftype = f.get('type', 'str')\n        if use_annotations:\n            if 'default' in f and f['default'] is not None:\n                default_repr = repr(f['default'])\n                lines.append('    %s: %s = %s' % (name, ftype, default_repr))\n            else:\n                lines.append('    %s: %s' % (name, ftype))\n        else:\n            if 'default' in f and f['default'] is not None:\n                lines.append('    %s = %r' % (name, f['default']))\n            else:\n                lines.append('    %s = None' % name)\n    if not fields and not has_doc:\n        lines.append('    pass')\n    return '\\n'.join(lines) + '\\n'\n",
+      "sample_values": {
+        "nama_fungsi": "generate_dataclass",
+        "use_annotations": true
+      }
+    },
+    {
+      "id": "mixin_composer",
+      "title": "Mixin Composer",
+      "description": "Gabung beberapa mixin class jadi satu class baru. Resolusi MRO otomatis.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi", "type": "identifier", "default": "compose_mixins"},
+        {"name": "nama_fungsi_named", "label": "Nama fungsi (named)", "type": "identifier", "default": "named_compose"}
+      ],
+      "code": "def {{nama_fungsi}}(*mixins, base=None):\n    \"\"\"Compose multiple mixin classes into one.\n    Returns a new class that inherits from all mixins + optional base.\n    Later mixins override earlier ones (MRO order).\n    \"\"\"\n    bases = tuple(mixins)\n    if base is not None:\n        bases = bases + (base,)\n    name = '_'.join(m.__name__ for m in mixins) + '_Composed'\n    return type(name, bases, {})\n\n\ndef {{nama_fungsi_named}}(name, *mixins, base=None):\n    \"\"\"Like compose_mixins but with a custom name.\"\"\"\n    bases = tuple(mixins)\n    if base is not None:\n        bases = bases + (base,)\n    return type(name, bases, {})\n\n\ndef has_method(obj, method_name):\n    \"\"\"Check if object has a specific method (not just attribute).\"\"\"\n    method = getattr(obj, method_name, None)\n    return callable(method)\n\n\ndef list_methods(cls):\n    \"\"\"List all public methods of a class (excluding dunder).\"\"\"\n    return [name for name in dir(cls) if callable(getattr(cls, name, None)) and not name.startswith('_')]\n",
+      "sample_values": {
+        "nama_fungsi": "compose_mixins",
+        "nama_fungsi_named": "named_compose"
+      }
+    },
+    {
+      "id": "singleton_metaclass",
+      "title": "Singleton Pattern — metaclass + decorator",
+      "description": "Pattern Singleton: class yang hanya bisa punya satu instance. Support metaclass dan decorator.",
+      "imports": ["functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_metaclass", "label": "Nama metaclass", "type": "identifier", "default": "SingletonMeta"},
+        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "singleton"}
+      ],
+      "code": "class {{nama_metaclass}}(type):\n    \"\"\"Singleton metaclass. Usage: class MyClass(metaclass=SingletonMeta): ...\n    Only one instance of MyClass can ever exist.\n    \"\"\"\n    _instances = {}\n\n    def __call__(cls, *args, **kwargs):\n        if cls not in cls._instances:\n            cls._instances[cls] = super().__call__(*args, **kwargs)\n        return cls._instances[cls]\n\n    @classmethod\n    def reset(mcs, cls):\n        \"\"\"Reset the singleton instance (useful for testing).\"\"\"\n        mcs._instances.pop(cls, None)\n\n\ndef {{nama_decorator}}(cls):\n    \"\"\"Singleton decorator alternative. Usage: @singleton class MyClass: ...\n    Wraps __init__ to prevent re-initialization.\n    \"\"\"\n    instances = {}\n    original_init = cls.__init__\n\n    @functools.wraps(cls.__init__)\n    def __init__(self, *args, **kwargs):\n        if not getattr(self, '_initialized', False):\n            original_init(self, *args, **kwargs)\n            self._initialized = True\n\n    cls.__init__ = __init__\n\n    original_new = cls.__new__ if hasattr(cls, '__new__') and cls.__new__ is not object.__new__ else None\n\n    def __new__(klass, *args, **kwargs):\n        if cls not in instances:\n            if original_new:\n                instance = original_new(klass)\n            else:\n                instance = object.__new__(klass)\n            instances[cls] = instance\n        return instances[cls]\n\n    cls.__new__ = __new__\n    cls._reset_singleton = lambda: instances.pop(cls, None)\n    return cls\n",
+      "sample_values": {
+        "nama_metaclass": "SingletonMeta",
+        "nama_decorator": "singleton"
+      }
+    },
+    {
+      "id": "observable_property",
+      "title": "Observable Property — getter/setter with callback",
+      "description": "Property yang trigger callback saat nilai berubah. Observer pattern untuk atribut class.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi descriptor", "type": "identifier", "default": "observable"},
+        {"name": "nama_class", "label": "Nama class Observer mixin", "type": "identifier", "default": "ObservableMixin"}
+      ],
+      "code": "class {{nama_fungsi}}:\n    \"\"\"Descriptor that triggers callbacks on value change.\n    class Config:\n        debug = observable(False)\n    c = Config()\n    c.debug = True  # triggers callbacks\n    \"\"\"\n    def __init__(self, initial_value=None, name=None):\n        self._name = name\n        self._initial = initial_value\n        self._callbacks = []\n\n    def __set_name__(self, owner, name):\n        self._name = name\n\n    def __get__(self, obj, objtype=None):\n        if obj is None:\n            return self\n        return obj.__dict__.get('_obs_' + self._name, self._initial)\n\n    def __set__(self, obj, value):\n        old = self.__get__(obj)\n        obj.__dict__['_obs_' + self._name] = value\n        if old != value:\n            for callback in obj.__dict__.get('_obs_callbacks_' + self._name, []):\n                callback(self._name, old, value)\n\n    def on_change(self, callback):\n        \"\"\"Register a callback for changes. Use as class-level setup.\"\"\"\n        self._callbacks.append(callback)\n        return self\n\n\nclass {{nama_class}}:\n    \"\"\"Mixin that adds observer support for observable properties.\n    class Config(ObservableMixin):\n        name = observable('default')\n    c = Config()\n    c.watch('name', lambda attr, old, new: print(f'{attr}: {old} -> {new}'))\n    \"\"\"\n    def watch(self, attr_name, callback):\n        \"\"\"Watch for changes on an observable attribute.\"\"\"\n        key = '_obs_callbacks_' + attr_name\n        if key not in self.__dict__:\n            self.__dict__[key] = []\n        self.__dict__[key].append(callback)\n\n    def unwatch(self, attr_name, callback=None):\n        \"\"\"Remove callback(s) for an attribute.\"\"\"\n        key = '_obs_callbacks_' + attr_name\n        if callback:\n            self.__dict__.get(key, []).remove(callback)\n        else:\n            self.__dict__.pop(key, None)\n",
+      "sample_values": {
+        "nama_fungsi": "observable",
+        "nama_class": "ObservableMixin"
+      }
+    },
+    {
+      "id": "auto_repr",
+      "title": "__repr__ Auto-Generator",
+      "description": "Decorator yang auto-generate __repr__ dari instance attributes. Clean output tanpa boilerplate.",
+      "imports": [],
+      "requires": {},
+      "fields": [
+        {"name": "nama_decorator", "label": "Nama decorator", "type": "identifier", "default": "auto_repr"},
+        {"name": "nama_decorator_str", "label": "Nama decorator (repr + str)", "type": "identifier", "default": "auto_repr_str"}
+      ],
+      "code": "def {{nama_decorator}}(cls=None, hide_private=True, max_items=None):\n    \"\"\"Auto-generate __repr__ from instance attributes.\n    @auto_repr\n    class Point:\n        def __init__(self, x, y):\n            self.x = x\n            self.y = y\n    repr(Point(1, 2)) → 'Point(x=1, y=2)'\n    \"\"\"\n    def decorator(klass):\n        def __repr__(self):\n            attrs = vars(self)\n            if hide_private:\n                attrs = {k: v for k, v in attrs.items() if not k.startswith('_')}\n            parts = []\n            for k, v in attrs.items():\n                if max_items and len(parts) >= max_items:\n                    parts.append('...')\n                    break\n                parts.append('%s=%r' % (k, v))\n            return klass.__name__ + '(' + ', '.join(parts) + ')'\n        klass.__repr__ = __repr__\n        return klass\n\n    if cls is not None:\n        return decorator(cls)\n    return decorator\n\n\ndef {{nama_decorator_str}}(cls=None, **kwargs):\n    \"\"\"Like auto_repr but also sets __str__ = __repr__.\"\"\"\n    def decorator(klass):\n        klass = {{nama_decorator}}(cls=klass, **kwargs)\n        klass.__str__ = klass.__repr__\n        return klass\n    if cls is not None:\n        return decorator(cls)\n    return decorator\n",
+      "sample_values": {
+        "nama_decorator": "auto_repr",
+        "nama_decorator_str": "auto_repr_str"
+      }
+    },
+    {
+      "id": "interface_checker",
+      "title": "ABC Interface Validator",
+      "description": "Cek apakah class mengimplementasikan semua method dari interface. Runtime check.",
+      "imports": ["inspect"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_fungsi", "label": "Nama fungsi checker", "type": "identifier", "default": "check_interface"},
+        {"name": "nama_decorator", "label": "Nama decorator implements", "type": "identifier", "default": "implements"}
+      ],
+      "code": "def {{nama_fungsi}}(cls, interface):\n    \"\"\"Check if cls implements all public methods of interface.\n    Returns dict with 'complete' (bool), 'missing' (list), 'matches' (list).\n    \"\"\"\n    required = set()\n    for name, method in inspect.getmembers(interface, predicate=inspect.isfunction):\n        if not name.startswith('_'):\n            required.add(name)\n    implemented = set()\n    for name in required:\n        if hasattr(cls, name) and callable(getattr(cls, name, None)):\n            implemented.add(name)\n    missing = required - implemented\n    return {\n        'complete': len(missing) == 0,\n        'missing': sorted(missing),\n        'matches': sorted(implemented),\n        'required': sorted(required),\n    }\n\n\ndef {{nama_decorator}}(interface):\n    \"\"\"Decorator that validates a class implements an interface at definition time.\n    Raises TypeError if any methods are missing.\n    Usage: @implements(MyInterface) class MyClass: ...\n    \"\"\"\n    def decorator(cls):\n        result = {{nama_fungsi}}(cls, interface)\n        if not result['complete']:\n            raise TypeError('%s does not implement %s. Missing: %s' % (\n                cls.__name__, interface.__name__, ', '.join(result['missing'])\n            ))\n        cls.__implements__ = interface\n        return cls\n    return decorator\n",
+      "sample_values": {
+        "nama_fungsi": "check_interface",
+        "nama_decorator": "implements"
+      }
+    },
+    {
+      "id": "dep_injector",
+      "title": "Simple Dependency Injector",
+      "description": "Inject dependencies dari registry ke function parameters. Lightweight IoC container.",
+      "imports": ["inspect", "functools"],
+      "requires": {},
+      "fields": [
+        {"name": "nama_class", "label": "Nama class container", "type": "identifier", "default": "Container"},
+        {"name": "nama_decorator", "label": "Nama decorator inject", "type": "identifier", "default": "inject"}
+      ],
+      "code": "class {{nama_class}}:\n    \"\"\"Simple IoC container for dependency injection.\n    c = Container()\n    c.register('db', Database('localhost'))\n    c.register('cache', Cache())\n    @c.inject\n    def handler(db, cache):\n        ...\n    \"\"\"\n    def __init__(self):\n        self._registry = {}\n        self._factories = {}\n\n    def register(self, name, instance):\n        \"\"\"Register a pre-built instance.\"\"\"\n        self._registry[name] = instance\n        return self\n\n    def register_factory(self, name, factory):\n        \"\"\"Register a factory function (called lazily, result cached).\"\"\"\n        self._factories[name] = factory\n        return self\n\n    def get(self, name, default=None):\n        \"\"\"Get a registered dependency by name.\"\"\"\n        if name in self._registry:\n            return self._registry[name]\n        if name in self._factories:\n            self._registry[name] = self._factories[name]()\n            del self._factories[name]\n            return self._registry[name]\n        return default\n\n    def inject(self, func):\n        \"\"\"Decorator: inject registered dependencies into function parameters.\"\"\"\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            sig = inspect.signature(func)\n            for param_name, param in sig.parameters.items():\n                if param_name not in kwargs and param_name not in ('args', 'kwargs'):\n                    dep = self.get(param_name)\n                    if dep is not None:\n                        kwargs[param_name] = dep\n            return func(*args, **kwargs)\n        return wrapper\n\n    def has(self, name):\n        return name in self._registry or name in self._factories\n\n    def clear(self):\n        self._registry.clear()\n        self._factories.clear()\n",
+      "sample_values": {
+        "nama_class": "Container",
+        "nama_decorator": "inject"
+      }
+    }
+  ]
+}
